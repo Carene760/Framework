@@ -1,0 +1,2 @@
+javac -d build src/com/framework/*.java 
+jar cvf lib/framework-scanner.jar -C build .
