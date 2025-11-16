@@ -1,5 +1,6 @@
 package com.framework.servlet;
 
+import com.framework.model.ModelView;
 import com.framework.util.*;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
@@ -21,6 +22,11 @@ public class FrontServlet extends HttpServlet {
                 packageControllers = "com.cousin.controller"; 
             }
 
+            ControllerScanner scanner = new ControllerScanner(packageControllers);
+            scanner.afficherLesControllersEtRoutes();
+
+            this.routes = scanner.getRoutes();
+
             ServletContext context = getServletContext();
             context.setAttribute("controllerPackage", packageControllers);
             context.setAttribute("routes", this.routes);
@@ -35,7 +41,7 @@ public class FrontServlet extends HttpServlet {
     @Override
     protected void service(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        response.setContentType("text/html");
+        response.setContentType("text/html;charset=UTF-8");
         PrintWriter out = response.getWriter();
 
         String path = request.getRequestURI().substring(request.getContextPath().length());
@@ -49,9 +55,11 @@ public class FrontServlet extends HttpServlet {
 
                 if (result instanceof String) {
                     out.println((String) result); 
-                } else {
-                    out.println("<h3>Type de retour non géré :</h3>");
-                    out.println("<pre>" + result + "</pre>");
+                } else if (result instanceof ModelView) {
+                    ModelView mv = (ModelView) result;
+                    mv.getData().forEach(request::setAttribute);
+                    RequestDispatcher dispatcher = request.getRequestDispatcher(mv.getView());
+                    dispatcher.forward(request, response);
                 }
             } else {
                 out.println("<h2>Aucune route trouvée pour cette URL</h2>");
