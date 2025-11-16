@@ -21,6 +21,11 @@ public class FrontServlet extends HttpServlet {
                 packageControllers = "com.cousin.controller"; 
             }
 
+            ControllerScanner scanner = new ControllerScanner(packageControllers);
+            scanner.afficherLesControllersEtRoutes();
+
+            this.routes = scanner.getRoutes();
+          
             ServletContext context = getServletContext();
             context.setAttribute("controllerPackage", packageControllers);
             context.setAttribute("routes", this.routes);
