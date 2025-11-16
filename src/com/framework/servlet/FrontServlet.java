@@ -15,14 +15,22 @@ public class FrontServlet extends HttpServlet {
     @Override
     public void init() throws ServletException {
         try {
-            String packageControllers = "com.cousin.controller";
-            ControllerScanner scanner = new ControllerScanner(packageControllers);
-            scanner.afficherLesControllersEtRoutes();
-            routes = scanner.getRoutes(); // On garde toutes les routes trouvées
+            // Lire depuis le web.xml si tu veux rendre ça configurable :
+            String packageControllers = getServletConfig().getInitParameter("controller-package");
+            if (packageControllers == null) {
+                packageControllers = "com.cousin.controller"; 
+            }
+
+            ServletContext context = getServletContext();
+            context.setAttribute("controllerPackage", packageControllers);
+            context.setAttribute("routes", this.routes);
+
+            System.out.println("✅ Package contrôleur et routes enregistrés dans le ServletContext !");
         } catch (Exception e) {
-            throw new ServletException("Erreur lors du scan des contrôleurs", e);
+            throw new ServletException("Erreur lors de l'initialisation du framework", e);
         }
     }
+
 
     @Override
     protected void service(HttpServletRequest request, HttpServletResponse response)
@@ -31,17 +39,20 @@ public class FrontServlet extends HttpServlet {
         PrintWriter out = response.getWriter();
 
         String path = request.getRequestURI().substring(request.getContextPath().length());
-        out.println("<h1>URL demandée : " + path + "</h1>");
 
         try {
-            MethodRoute methodRoute = routes.get(path);
+            MethodRoute methodRoute = this.routes.get(path);
             if (methodRoute != null) {
                 Method method = methodRoute.getMethod();
                 Object controller = methodRoute.getControllerInstance();
                 Object result = method.invoke(controller);
 
-                out.println("<h2>Résultat de la méthode :</h2>");
-                out.println("<p>" + result + "</p>");
+                if (result instanceof String) {
+                    out.println((String) result); 
+                } else {
+                    out.println("<h3>Type de retour non géré :</h3>");
+                    out.println("<pre>" + result + "</pre>");
+                }
             } else {
                 out.println("<h2>Aucune route trouvée pour cette URL</h2>");
             }
