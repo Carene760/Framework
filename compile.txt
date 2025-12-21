@@ -1,0 +1,7 @@
+javac -cp lib/servlet-api.jar -d build src/core/FrontServlet.java
+jar cf Framework.jar -C build .
+
+
+# Verification
+jar tf Framework.jar
+
