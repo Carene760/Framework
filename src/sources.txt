@@ -1,5 +1,5 @@
-main\java\com\framework\annotation\MesRoutes.java 
-main\java\com\framework\annotation\MonController.java 
+main\java\com\framework\annotation\Url.java 
+main\java\com\framework\annotation\Controller.java 
 main\java\com\framework\model\ModelView.java 
 main\java\com\framework\servlet\FrontServlet.java 
 main\java\com\framework\util\ControllerScanner.java 

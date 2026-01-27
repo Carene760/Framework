@@ -1,10 +1,11 @@
 package com.framework.util;
 
-import com.framework.annotation.MonController;
-import com.framework.annotation.MesRoutes;
+import com.framework.annotation.Controller;
+import com.framework.annotation.Url;
 
 import java.io.File;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.net.URL;
 import java.util.*;
 
@@ -12,6 +13,7 @@ public class ControllerScanner {
 
     private final String packageName;
     private final Map<String, MethodRoute> routes = new HashMap<>();
+    private final List<MethodRoute> parameterizedRoutes = new ArrayList<>();
 
     public ControllerScanner(String packageName) {
         this.packageName = packageName;
@@ -20,23 +22,43 @@ public class ControllerScanner {
     public Map<String, MethodRoute> getRoutes() {
         return routes;
     }
+    
+    public List<MethodRoute> getParameterizedRoutes() {
+        return parameterizedRoutes;
+    }
 
     public void afficherLesControllersEtRoutes() throws Exception {
         List<Class<?>> classes = getClassesInPackageRecursively(packageName);
 
         System.out.println("\n=== Liste des contrôleurs et routes trouvés ===");
         for (Class<?> clazz : classes) {
-            if (clazz.isAnnotationPresent(MonController.class)) {
+            if (clazz.isAnnotationPresent(Controller.class)) {
                 System.out.println("🧩 Contrôleur : " + clazz.getName());
 
                 Object controllerInstance = clazz.getDeclaredConstructor().newInstance();
 
                 for (Method method : clazz.getDeclaredMethods()) {
-                    if (method.isAnnotationPresent(MesRoutes.class)) {
-                        MesRoutes route = method.getAnnotation(MesRoutes.class);
-                        routes.put(route.value(), new MethodRoute(controllerInstance, method));
-                        System.out.println("    ↳ Route : " + route.value() + 
-                                           " → " + clazz.getSimpleName() + "." + method.getName() + "()");
+                    if (method.isAnnotationPresent(Url.class)) {
+                        Url route = method.getAnnotation(Url.class);
+                        String routePath = route.value();
+                        
+                        // Vérifier si c'est une route paramétrée
+                        if (RouteMatcher.isParameterizedRoute(routePath)) {
+                            MethodRoute methodRoute = new MethodRoute(
+                                controllerInstance, 
+                                method, 
+                                routePath, 
+                                true
+                            );
+                            parameterizedRoutes.add(methodRoute);
+                            System.out.println("    ↳ Route paramétrée : " + routePath + 
+                                               " → " + clazz.getSimpleName() + "." + method.getName() + "()");
+                        } else {
+                            // Route normale
+                            routes.put(routePath, new MethodRoute(controllerInstance, method));
+                            System.out.println("    ↳ Route : " + routePath + 
+                                               " → " + clazz.getSimpleName() + "." + method.getName() + "()");
+                        }
                     }
                 }
             }
@@ -44,7 +66,9 @@ public class ControllerScanner {
         System.out.println("==============================================\n");
     }
 
+    // [Les autres méthodes restent inchangées...]
     private List<Class<?>> getClassesInPackageRecursively(String packageName) throws Exception {
+        // Code inchangé...
         String path = packageName.replace('.', '/');
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         URL resource = classLoader.getResource(path);
@@ -53,7 +77,6 @@ public class ControllerScanner {
             return Collections.emptyList();
         }
     
-        // Si c’est un chemin dans un dossier normal
         if (resource.getProtocol().equals("file")) {
             File directory = new File(resource.toURI());
             List<Class<?>> classes = new ArrayList<>();
@@ -61,7 +84,6 @@ public class ControllerScanner {
             return classes;
         }
     
-        // Si c’est dans un JAR (comme dans ton .war déployé)
         else if (resource.getProtocol().equals("jar")) {
             List<Class<?>> classes = new ArrayList<>();
             String jarPath = resource.getPath().substring(5, resource.getPath().indexOf("!"));
@@ -82,8 +104,8 @@ public class ControllerScanner {
         return Collections.emptyList();
     }
     
-
     private void scanDirectory(File directory, String packageName, List<Class<?>> classes) throws Exception {
+        // Code inchangé...
         for (File file : directory.listFiles()) {
             if (file.isDirectory()) {
                 scanDirectory(file, packageName + "." + file.getName(), classes);

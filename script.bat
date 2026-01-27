@@ -23,14 +23,15 @@ REM =====================================
 REM Compilation manuelle dans le bon ordre
 REM =====================================
 echo Compilation des annotations...
-javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\MesRoutes.java"
-javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\MonController.java"
+javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\Url.java"
+javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\Controller.java"
 
 echo Compilation du modele...
 javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\model\ModelView.java"
 
 echo Compilation des utilitaires...
 javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\util\MethodRoute.java"
+javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\util\RouteMatcher.java"
 javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\util\ControllerScanner.java"
 
 echo Compilation du servlet...

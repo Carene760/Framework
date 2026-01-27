@@ -12,11 +12,11 @@ import java.util.Map;
 public class FrontServlet extends HttpServlet {
 
     private Map<String, MethodRoute> routes;
+    private java.util.List<MethodRoute> parameterizedRoutes;
 
     @Override
     public void init() throws ServletException {
         try {
-            // Lire depuis le web.xml si tu veux rendre ça configurable :
             String packageControllers = getServletConfig().getInitParameter("controller-package");
             if (packageControllers == null) {
                 packageControllers = "com.cousin.controller"; 
@@ -26,17 +26,19 @@ public class FrontServlet extends HttpServlet {
             scanner.afficherLesControllersEtRoutes();
 
             this.routes = scanner.getRoutes();
+            this.parameterizedRoutes = scanner.getParameterizedRoutes();
 
             ServletContext context = getServletContext();
             context.setAttribute("controllerPackage", packageControllers);
             context.setAttribute("routes", this.routes);
+            context.setAttribute("parameterizedRoutes", this.parameterizedRoutes);
 
             System.out.println("✅ Package contrôleur et routes enregistrés dans le ServletContext !");
+            System.out.println("✅ Routes paramétrées détectées : " + parameterizedRoutes.size());
         } catch (Exception e) {
             throw new ServletException("Erreur lors de l'initialisation du framework", e);
         }
     }
-
 
     @Override
     protected void service(HttpServletRequest request, HttpServletResponse response)
@@ -47,7 +49,20 @@ public class FrontServlet extends HttpServlet {
         String path = request.getRequestURI().substring(request.getContextPath().length());
 
         try {
+            // 1. Vérifier d'abord les routes exactes
             MethodRoute methodRoute = this.routes.get(path);
+            
+            // 2. Si aucune route exacte, vérifier les routes paramétrées
+            if (methodRoute == null && !parameterizedRoutes.isEmpty()) {
+                for (MethodRoute paramRoute : parameterizedRoutes) {
+                    if (RouteMatcher.matches(path, paramRoute.getPathPattern())) {
+                        methodRoute = paramRoute;
+                        System.out.println("🔍 Route paramétrée matchée : " + path + " -> " + paramRoute.getPathPattern());
+                        break;
+                    }
+                }
+            }
+            
             if (methodRoute != null) {
                 Method method = methodRoute.getMethod();
                 Object controller = methodRoute.getControllerInstance();
@@ -62,7 +77,12 @@ public class FrontServlet extends HttpServlet {
                     dispatcher.forward(request, response);
                 }
             } else {
-                out.println("<h2>Aucune route trouvée pour cette URL</h2>");
+                out.println("<h2>Aucune route trouvée pour cette URL : " + path + "</h2>");
+                out.println("<h3>Routes disponibles :</h3>");
+                out.println("<ul>");
+                routes.keySet().forEach(r -> out.println("<li>" + r + "</li>"));
+                parameterizedRoutes.forEach(r -> out.println("<li>" + r.getPathPattern() + " (paramétrée)</li>"));
+                out.println("</ul>");
             }
         } catch (Exception e) {
             e.printStackTrace(out);
