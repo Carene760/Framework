@@ -5,7 +5,6 @@ import com.framework.annotation.Url;
 
 import java.io.File;
 import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
 import java.net.URL;
 import java.util.*;
 
@@ -42,6 +41,18 @@ public class ControllerScanner {
                         Url route = method.getAnnotation(Url.class);
                         String routePath = route.value();
                         
+                        // Afficher les informations sur les paramètres
+                        if (method.getParameterCount() > 0) {
+                            System.out.println("    📝 Méthode avec " + method.getParameterCount() + " paramètre(s):");
+                            for (java.lang.reflect.Parameter param : method.getParameters()) {
+                                String paramInfo = param.getType().getSimpleName() + " " + param.getName();
+                                if (param.isAnnotationPresent(com.framework.annotation.Param.class)) {
+                                    paramInfo += " (@Param: " + param.getAnnotation(com.framework.annotation.Param.class).value() + ")";
+                                }
+                                System.out.println("      - " + paramInfo);
+                            }
+                        }
+                        
                         // Vérifier si c'est une route paramétrée
                         if (RouteMatcher.isParameterizedRoute(routePath)) {
                             MethodRoute methodRoute = new MethodRoute(
@@ -66,9 +77,8 @@ public class ControllerScanner {
         System.out.println("==============================================\n");
     }
 
-    // [Les autres méthodes restent inchangées...]
+    // [Les méthodes restantes inchangées...]
     private List<Class<?>> getClassesInPackageRecursively(String packageName) throws Exception {
-        // Code inchangé...
         String path = packageName.replace('.', '/');
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         URL resource = classLoader.getResource(path);
@@ -105,7 +115,6 @@ public class ControllerScanner {
     }
     
     private void scanDirectory(File directory, String packageName, List<Class<?>> classes) throws Exception {
-        // Code inchangé...
         for (File file : directory.listFiles()) {
             if (file.isDirectory()) {
                 scanDirectory(file, packageName + "." + file.getName(), classes);

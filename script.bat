@@ -25,6 +25,7 @@ REM =====================================
 echo Compilation des annotations...
 javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\Url.java"
 javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\Controller.java"
+javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\Param.java"
 
 echo Compilation du modele...
 javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\model\ModelView.java"
@@ -33,6 +34,7 @@ echo Compilation des utilitaires...
 javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\util\MethodRoute.java"
 javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\util\RouteMatcher.java"
 javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\util\ControllerScanner.java"
+javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\util\ParameterResolver.java"
 
 echo Compilation du servlet...
 javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\servlet\FrontServlet.java"
@@ -76,5 +78,3 @@ copy /y "%FRAMEWORK_JAR%" "%TESTAPP_LIB%\"
 echo.
 echo ✅ framework.jar genere et copie avec succes!
 echo.
-
-pause

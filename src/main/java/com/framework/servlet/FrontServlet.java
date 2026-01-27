@@ -66,7 +66,34 @@ public class FrontServlet extends HttpServlet {
             if (methodRoute != null) {
                 Method method = methodRoute.getMethod();
                 Object controller = methodRoute.getControllerInstance();
-                Object result = method.invoke(controller);
+                
+                // Récupérer et afficher les paramètres de la requête
+                Map<String, String[]> requestParams = request.getParameterMap();
+                if (!requestParams.isEmpty()) {
+                    System.out.println("📥 Paramètres de la requête:");
+                    for (Map.Entry<String, String[]> entry : requestParams.entrySet()) {
+                        System.out.println("  - " + entry.getKey() + " = " + 
+                                         String.join(", ", entry.getValue()));
+                    }
+                }
+                
+                // Résoudre les paramètres de la méthode
+                Map<String, Object> parameterValues = ParameterResolver.resolveParameters(request, method);
+                
+                // Afficher les valeurs résolues
+                if (!parameterValues.isEmpty()) {
+                    System.out.println("🎯 Paramètres résolus pour l'appel:");
+                    for (Map.Entry<String, Object> entry : parameterValues.entrySet()) {
+                        System.out.println("  - " + entry.getKey() + " = " + entry.getValue() + 
+                                         " (" + (entry.getValue() != null ? entry.getValue().getClass().getSimpleName() : "null") + ")");
+                    }
+                }
+                
+                // Préparer les arguments pour l'invocation
+                Object[] args = ParameterResolver.prepareArguments(method, parameterValues);
+                
+                // Invoquer la méthode avec les arguments
+                Object result = method.invoke(controller, args);
 
                 if (result instanceof String) {
                     out.println((String) result); 
