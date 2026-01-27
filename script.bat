@@ -9,8 +9,8 @@ set "SRC=%FRAMEWORK_PATH%\src\main\java"
 set "BIN=%FRAMEWORK_PATH%\build"
 set "LIB=C:\tomcat11\apache-tomcat-11.0.7\lib"
 set "FRAMEWORK_JAR=%FRAMEWORK_PATH%\framework.jar"
-set "JAKARTA_JAR=%LIB%\servlet-api.jar"
-set "TESTAPP_LIB=C:\Users\user\Documents\S5\Mr Naina\Test_framework\src\main\webapp\WEB-INF\lib"
+set "JAKARTA_JAR=%LIB%\servlet-api.jar" 
+set "TESTAPP_LIB=E:\HP\Documents\S5\Mr Naina\Test_framework\src\main\webapp\WEB-INF\lib"
 
 REM =====================================
 REM Nettoyer ancien bin
