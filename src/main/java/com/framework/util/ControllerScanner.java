@@ -1,8 +1,6 @@
 package com.framework.util;
 
-import com.framework.annotation.Controller;
-import com.framework.annotation.Url;
-
+import com.framework.annotation.*;
 import java.io.File;
 import java.lang.reflect.Method;
 import java.net.URL;
@@ -34,49 +32,114 @@ public class ControllerScanner {
             if (clazz.isAnnotationPresent(Controller.class)) {
                 System.out.println("🧩 Contrôleur : " + clazz.getName());
 
+                // Récupérer le préfixe de chemin depuis @RequestMapping sur la classe
+                String classPathPrefix = "";
+                if (clazz.isAnnotationPresent(RequestMapping.class)) {
+                    classPathPrefix = clazz.getAnnotation(RequestMapping.class).value();
+                    System.out.println("  📁 Préfixe de chemin: " + classPathPrefix);
+                }
+
                 Object controllerInstance = clazz.getDeclaredConstructor().newInstance();
 
-                System.out.println(" Détails des paramètres:");
+                // Scanner toutes les méthodes
                 for (Method method : clazz.getDeclaredMethods()) {
-                    if (method.isAnnotationPresent(Url.class)) {
-                        Url route = method.getAnnotation(Url.class);
-                        String routePath = route.value();
-                        
-                        // Afficher les informations sur les paramètres
-                        if (method.getParameterCount() > 0) {
-                            System.out.println("    📝 Méthode avec " + method.getParameterCount() + " paramètre(s):");
-                            for (java.lang.reflect.Parameter param : method.getParameters()) {
-                                String paramInfo = param.getType().getSimpleName() + " " + param.getName();
-                                if (param.isAnnotationPresent(com.framework.annotation.Param.class)) {
-                                    paramInfo += " (@Param: " + param.getAnnotation(com.framework.annotation.Param.class).value() + ")";
-                                }
-                                System.out.println("      - " + paramInfo);
-                            }
-                        }
-                        
-                        // Vérifier si c'est une route paramétrée
-                        if (RouteMatcher.isParameterizedRoute(routePath)) {
-                            MethodRoute methodRoute = new MethodRoute(
-                                controllerInstance, 
-                                method, 
-                                routePath, 
-                                true,
-                                new HashMap<>()
-                            );
-                            parameterizedRoutes.add(methodRoute);
-                            System.out.println("    ↳ Route paramétrée : " + routePath + 
-                                               " → " + clazz.getSimpleName() + "." + method.getName() + "()");
-                        } else {
-                            // Route normale
-                            routes.put(routePath, new MethodRoute(controllerInstance, method));
-                            System.out.println("    ↳ Route : " + routePath + 
-                                               " → " + clazz.getSimpleName() + "." + method.getName() + "()");
-                        }
-                    }
+                    processMethod(method, controllerInstance, classPathPrefix);
                 }
             }
         }
         System.out.println("==============================================\n");
+    }
+    
+    private void processMethod(Method method, Object controllerInstance, String classPathPrefix) {
+        String routePath = "";
+        String httpMethod = "GET";
+        
+        // Détecter l'annotation de mapping
+        if (method.isAnnotationPresent(GetMapping.class)) {
+            GetMapping mapping = method.getAnnotation(GetMapping.class);
+            routePath = mapping.value();
+            httpMethod = "GET";
+        } else if (method.isAnnotationPresent(PostMapping.class)) {
+            PostMapping mapping = method.getAnnotation(PostMapping.class);
+            routePath = mapping.value();
+            httpMethod = "POST";
+        } else if (method.isAnnotationPresent(RequestMapping.class)) {
+            RequestMapping mapping = method.getAnnotation(RequestMapping.class);
+            routePath = mapping.value();
+            httpMethod = mapping.method();
+        } else if (method.isAnnotationPresent(Url.class)) {
+            // Support rétro-compatible avec @Url
+            Url mapping = method.getAnnotation(Url.class);
+            routePath = mapping.value();
+            httpMethod = mapping.method();
+        } else {
+            // Pas une méthode de route
+            return;
+        }
+        
+        // CORRECTION : Combiner le préfixe de classe et le chemin de la méthode
+        String fullPath = combinePaths(classPathPrefix, routePath);
+        
+        // Normaliser le chemin (supprimer les doubles slash)
+        fullPath = normalizePath(fullPath);
+        
+        System.out.println("  🛣️  Chemin combiné: '" + classPathPrefix + "' + '" + routePath + "' = '" + fullPath + "'");
+        
+        // Vérifier si c'est une route paramétrée
+        if (RouteMatcher.isParameterizedRoute(fullPath)) {
+            MethodRoute methodRoute = new MethodRoute(
+                controllerInstance, 
+                method, 
+                fullPath, 
+                true,
+                httpMethod
+            );
+            parameterizedRoutes.add(methodRoute);
+            System.out.println("    ↳ " + httpMethod + " " + fullPath + 
+                            " → " + method.getDeclaringClass().getSimpleName() + "." + method.getName() + "()");
+        } else {
+            // Route normale
+            MethodRoute methodRoute = new MethodRoute(controllerInstance, method, httpMethod);
+            routes.put(fullPath, methodRoute);
+            System.out.println("    ↳ " + httpMethod + " " + fullPath + 
+                            " → " + method.getDeclaringClass().getSimpleName() + "." + method.getName() + "()");
+        }
+    }
+
+    private String combinePaths(String prefix, String path) {
+        if (prefix == null || prefix.isEmpty()) {
+            return path;
+        }
+        if (path == null || path.isEmpty()) {
+            return prefix;
+        }
+        
+        // Supprimer les / en double et s'assurer d'un seul / entre les parties
+        prefix = prefix.endsWith("/") ? prefix.substring(0, prefix.length() - 1) : prefix;
+        path = path.startsWith("/") ? path : "/" + path;
+        
+        return prefix + path;
+    }
+
+    private String normalizePath(String path) {
+        if (path == null || path.isEmpty()) {
+            return "/";
+        }
+        
+        // S'assurer que le chemin commence par /
+        if (!path.startsWith("/")) {
+            path = "/" + path;
+        }
+        
+        // Supprimer les doubles slash
+        path = path.replaceAll("/{2,}", "/");
+        
+        // S'assurer que le chemin ne se termine pas par / (sauf pour la racine)
+        if (path.length() > 1 && path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        
+        return path;
     }
 
     // [Les méthodes restantes inchangées...]
