@@ -1,12 +1,8 @@
 package com.framework.util;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.*;
 import java.util.regex.*;
-import jakarta.servlet.http.HttpServletRequest;
-
-import com.framework.annotation.Param;
 
 public class RouteMatcher {
     
@@ -18,18 +14,23 @@ public class RouteMatcher {
             return requestPath.equals(routePattern);
         }
         
-        String regex = routePattern.replaceAll("\\{[^/]+\\}", "([^/]+)");
-        regex = "^" + regex + "$";
-        
+        String regex = convertPatternToRegex(routePattern);
         return requestPath.matches(regex);
     }
     
     /**
-     * Extrait les paramètres d'une URL selon un pattern
-     * et les ajoute aux paramètres existants
+     * Convertit un pattern comme /etudiant/{id} en regex /etudiant/([^/]+)
      */
-    public static Map<String, String> extractUrlParameters(String requestPath, String routePattern, 
-                                                          HttpServletRequest request) {
+    private static String convertPatternToRegex(String pattern) {
+        String regex = pattern.replaceAll("\\{[^/]+\\}", "([^/]+)");
+        return "^" + regex + "$";
+    }
+    
+    /**
+     * Extrait les valeurs des paramètres d'URL et les retourne dans une Map
+     * Ex: /etudiant/25 avec pattern /etudiant/{id} → {"id": "25"}
+     */
+    public static Map<String, String> extractUrlParameters(String requestPath, String routePattern) {
         Map<String, String> urlParams = new HashMap<>();
         
         if (!routePattern.contains("{")) {
@@ -39,17 +40,14 @@ public class RouteMatcher {
         // Extraire les noms des paramètres du pattern
         List<String> paramNames = new ArrayList<>();
         Pattern paramPattern = Pattern.compile("\\{([^/]+)\\}");
-        Matcher matcher = paramPattern.matcher(routePattern);
+        Matcher nameMatcher = paramPattern.matcher(routePattern);
         
-        while (matcher.find()) {
-            paramNames.add(matcher.group(1));
+        while (nameMatcher.find()) {
+            paramNames.add(nameMatcher.group(1));
         }
         
-        // Convertir le pattern en regex
-        String regex = routePattern.replaceAll("\\{[^/]+\\}", "([^/]+)");
-        regex = "^" + regex + "$";
-        
-        // Extraire les valeurs
+        // Convertir le pattern en regex et extraire les valeurs
+        String regex = convertPatternToRegex(routePattern);
         Pattern valuePattern = Pattern.compile(regex);
         Matcher valueMatcher = valuePattern.matcher(requestPath);
         
@@ -58,12 +56,6 @@ public class RouteMatcher {
                 String paramName = paramNames.get(i);
                 String paramValue = valueMatcher.group(i + 1);
                 urlParams.put(paramName, paramValue);
-                
-                // Ajouter aussi aux paramètres de la requête pour compatibilité
-                // avec request.getParameter()
-                if (request != null) {
-                    request.setAttribute("urlParam_" + paramName, paramValue);
-                }
             }
         }
         
@@ -71,24 +63,23 @@ public class RouteMatcher {
     }
     
     /**
-     * Combine les paramètres d'URL avec les paramètres GET/POST
-     * Priorité: paramètres d'URL > paramètres GET/POST
+     * Combine tous les paramètres : URL (prioritaire) + GET/POST
      */
-    public static Map<String, String> combineParameters(
+    public static Map<String, String> combineAllParameters(
             String requestPath, String routePattern, HttpServletRequest request) {
         
         Map<String, String> allParams = new HashMap<>();
         
-        // 1. D'abord les paramètres GET/POST
+        // 1. D'abord les paramètres GET/POST (priorité basse)
         Enumeration<String> paramNames = request.getParameterNames();
         while (paramNames.hasMoreElements()) {
             String name = paramNames.nextElement();
             allParams.put(name, request.getParameter(name));
         }
         
-        // 2. Ensuite les paramètres d'URL (écrasent les paramètres GET/POST si même nom)
-        Map<String, String> urlParams = extractUrlParameters(requestPath, routePattern, request);
-        allParams.putAll(urlParams);
+        // 2. Ensuite les paramètres d'URL (priorité haute - écrasent les GET/POST)
+        Map<String, String> urlParams = extractUrlParameters(requestPath, routePattern);
+        allParams.putAll(urlParams); // Les paramètres d'URL écrasent les GET/POST
         
         return allParams;
     }
@@ -99,68 +90,15 @@ public class RouteMatcher {
     public static boolean isParameterizedRoute(String route) {
         return route.contains("{") && route.contains("}");
     }
-
-        /**
-     * Nouvelle méthode qui combine paramètres GET/POST et paramètres d'URL
-     */
-    public static Map<String, Object> resolveParametersWithUrl(
-            HttpServletRequest request, 
-            Method method, 
-            String requestPath,
-            String routePattern) {
-        
-        Map<String, Object> parameterValues = new HashMap<>();
-        Parameter[] parameters = method.getParameters();
-        
-        // Combiner tous les paramètres (URL + GET/POST)
-        Map<String, String> allParams = RouteMatcher.combineParameters(requestPath, routePattern, request);
-        
-        System.out.println("📋 Tous les paramètres disponibles:");
-        allParams.forEach((k, v) -> System.out.println("  - " + k + " = " + v));
-        
-        for (int i = 0; i < parameters.length; i++) {
-            Parameter param = parameters[i];
-            String paramName = param.getName();
-            String paramAnnotationName = null;
-            
-            // Vérifier si l'annotation @Param est présente
-            if (param.isAnnotationPresent(Param.class)) {
-                paramAnnotationName = param.getAnnotation(Param.class).value();
-            }
-            
-            // Chercher la valeur selon la priorité
-            Object paramValue = findParameterValueWithPriority(param, paramAnnotationName, paramName, allParams);
-            
-            parameterValues.put(paramName, paramValue);
-        }
-        
-        return parameterValues;
-    }
     
-    private static Object findParameterValueWithPriority(
-            Parameter param,
-            String paramAnnotationName,
-            String paramName,
-            Map<String, String> allParams) {
-        
-        Class<?> type = param.getType();
-        
-        // PRIORITÉ 1: @Param existe ET se trouve dans les paramètres
-        if (paramAnnotationName != null && allParams.containsKey(paramAnnotationName)) {
-            String value = allParams.get(paramAnnotationName);
-            System.out.println("    ✅ " + paramName + " → via @Param('" + paramAnnotationName + "') = " + value);
-            return ParameterResolver.convertValue(value, type);
+    /**
+     * Affiche les paramètres extraits pour le débogage
+     */
+    public static void debugUrlExtraction(String requestPath, String routePattern) {
+        Map<String, String> urlParams = extractUrlParameters(requestPath, routePattern);
+        if (!urlParams.isEmpty()) {
+            System.out.println("🌐 Paramètres extraits de l'URL:");
+            urlParams.forEach((k, v) -> System.out.println("  - {" + k + "} = " + v));
         }
-        
-        // PRIORITÉ 2: Le nom du paramètre existe dans les paramètres
-        if (allParams.containsKey(paramName)) {
-            String value = allParams.get(paramName);
-            System.out.println("    ✅ " + paramName + " → via nom = " + value);
-            return ParameterResolver.convertValue(value, type);
-        }
-        
-        // PRIORITÉ 3: Aucun paramètre trouvé
-        System.out.println("    ❌ " + paramName + " → non trouvé");
-        return ParameterResolver.getDefaultValue(type);
     }
 }
