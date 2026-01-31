@@ -10,57 +10,90 @@ import java.util.Map;
 public class ParameterResolver {
     
     /**
-     * Récupère les valeurs des paramètres pour une méthode donnée
-     * @param request La requête HTTP
-     * @param method La méthode du contrôleur
-     * @return Map des valeurs des paramètres
+     * Résout les paramètres avec support de @Param et priorité
      */
-    public static Map<String, Object> resolveParameters(HttpServletRequest request, Method method) {
+    public static Map<String, Object> resolveParametersWithUrl(
+            HttpServletRequest request, 
+            Method method, 
+            String requestPath,
+            String routePattern) {
+        
         Map<String, Object> parameterValues = new HashMap<>();
         Parameter[] parameters = method.getParameters();
         
-        for (int i = 0; i < parameters.length; i++) {
-            Parameter param = parameters[i];
-            String paramName = getParameterName(param, i);
-            Object paramValue = getParameterValue(request, param, paramName);
+        // Combiner tous les paramètres (URL + GET/POST)
+        Map<String, String> allParams = RouteMatcher.combineParameters(requestPath, routePattern, request);
+        
+        System.out.println("📋 Tous les paramètres disponibles:");
+        allParams.forEach((k, v) -> System.out.println("  - " + k + " = " + v));
+        
+        for (Parameter param : parameters) {
+            String paramName = getParameterName(param);
+            String paramAnnotationName = null;
             
-            parameterValues.put(param.getName(), paramValue);
+            // Vérifier si l'annotation @Param est présente
+            if (param.isAnnotationPresent(Param.class)) {
+                paramAnnotationName = param.getAnnotation(Param.class).value();
+            }
+            
+            // Chercher la valeur selon la priorité
+            Object paramValue = findParameterValueWithPriority(param, paramAnnotationName, paramName, allParams);
+            
+            parameterValues.put(paramName, paramValue);
         }
         
         return parameterValues;
     }
     
-    /**
-     * Détermine le nom du paramètre
-     */
-    private static String getParameterName(Parameter param, int index) {
-        // 1. Vérifier si l'annotation @Param est présente
-        if (param.isAnnotationPresent(Param.class)) {
-            return param.getAnnotation(Param.class).value();
+    private static Object findParameterValueWithPriority(
+            Parameter param,
+            String paramAnnotationName,
+            String paramName,
+            Map<String, String> allParams) {
+        
+        Class<?> type = param.getType();
+        
+        // PRIORITÉ 1: @Param existe ET se trouve dans les paramètres
+        if (paramAnnotationName != null) {
+            if (allParams.containsKey(paramAnnotationName)) {
+                String value = allParams.get(paramAnnotationName);
+                System.out.println("    ✅ " + paramName + " → via @Param('" + paramAnnotationName + "') = " + value);
+                return convertValue(value, type);
+            }
+            System.out.println("    ⚠️ " + paramName + " → @Param('" + paramAnnotationName + "') non trouvé");
         }
         
-        // 2. Sinon, utiliser le nom du paramètre
-        // Note: nécessite -parameters lors de la compilation pour avoir les noms
-        if (param.isNamePresent()) {
-            return param.getName();
+        // PRIORITÉ 2: Le nom du paramètre existe dans les paramètres
+        if (allParams.containsKey(paramName)) {
+            String value = allParams.get(paramName);
+            System.out.println("    ✅ " + paramName + " → via nom = " + value);
+            return convertValue(value, type);
         }
         
-        // 3. Fallback: utiliser un nom générique
-        return "arg" + index;
+        // PRIORITÉ 3: Aucun paramètre trouvé
+        System.out.println("    ❌ " + paramName + " → non trouvé");
+        return getDefaultValue(type);
     }
     
     /**
-     * Récupère la valeur d'un paramètre depuis la requête
+     * Obtient le nom réel d'un paramètre
      */
-    private static Object getParameterValue(HttpServletRequest request, Parameter param, String paramName) {
-        String stringValue = request.getParameter(paramName);
-        
-        if (stringValue == null || stringValue.trim().isEmpty()) {
+    private static String getParameterName(Parameter param) {
+        // Java garde les noms seulement si compilé avec -parameters
+        if (param.isNamePresent()) {
+            return param.getName();
+        }
+        // Fallback: utiliser arg0, arg1, etc.
+        return "arg" + param.hashCode(); // Simple fallback
+    }
+    
+    /**
+     * Convertit une valeur String en type cible
+     */
+    public static Object convertValue(String stringValue, Class<?> type) {
+        if (stringValue == null) {
             return null;
         }
-        
-        // Convertir selon le type du paramètre
-        Class<?> type = param.getType();
         
         try {
             if (type.equals(String.class)) {
@@ -76,13 +109,10 @@ public class ParameterResolver {
             } else if (type.equals(Boolean.class) || type.equals(boolean.class)) {
                 return Boolean.parseBoolean(stringValue);
             } else {
-                // Pour les autres types, retourner la chaîne
                 return stringValue;
             }
         } catch (NumberFormatException e) {
-            // En cas d'erreur de conversion, retourner null
-            System.err.println("Erreur de conversion pour le paramètre " + paramName + 
-                             ": '" + stringValue + "' en " + type.getSimpleName());
+            System.err.println("Erreur de conversion pour " + type.getSimpleName() + ": '" + stringValue + "'");
             return null;
         }
     }
@@ -96,10 +126,26 @@ public class ParameterResolver {
         
         for (int i = 0; i < parameters.length; i++) {
             Parameter param = parameters[i];
-            String paramName = param.getName();
-            args[i] = parameterValues.getOrDefault(paramName, null);
+            String paramName = getParameterName(param);
+            args[i] = parameterValues.getOrDefault(paramName, getDefaultValue(param.getType()));
         }
         
         return args;
+    }
+    
+    /**
+     * Retourne la valeur par défaut pour un type
+     */
+    public static Object getDefaultValue(Class<?> type) {
+        if (type.equals(int.class) || type.equals(long.class) || 
+            type.equals(double.class) || type.equals(float.class)) {
+            return 0;
+        } else if (type.equals(boolean.class)) {
+            return false;
+        } else if (type.equals(char.class)) {
+            return '\0';
+        } else {
+            return null;
+        }
     }
 }

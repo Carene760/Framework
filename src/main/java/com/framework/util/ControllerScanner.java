@@ -36,6 +36,7 @@ public class ControllerScanner {
 
                 Object controllerInstance = clazz.getDeclaredConstructor().newInstance();
 
+                System.out.println(" Détails des paramètres:");
                 for (Method method : clazz.getDeclaredMethods()) {
                     if (method.isAnnotationPresent(Url.class)) {
                         Url route = method.getAnnotation(Url.class);
@@ -59,7 +60,8 @@ public class ControllerScanner {
                                 controllerInstance, 
                                 method, 
                                 routePath, 
-                                true
+                                true,
+                                new HashMap<>()
                             );
                             parameterizedRoutes.add(methodRoute);
                             System.out.println("    ↳ Route paramétrée : " + routePath + 

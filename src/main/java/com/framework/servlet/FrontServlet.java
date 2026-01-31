@@ -40,7 +40,7 @@ public class FrontServlet extends HttpServlet {
         }
     }
 
-    @Override
+        @Override
     protected void service(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
@@ -51,13 +51,15 @@ public class FrontServlet extends HttpServlet {
         try {
             // 1. Vérifier d'abord les routes exactes
             MethodRoute methodRoute = this.routes.get(path);
+            String matchedPattern = path; // Pour les routes exactes
             
             // 2. Si aucune route exacte, vérifier les routes paramétrées
             if (methodRoute == null && !parameterizedRoutes.isEmpty()) {
                 for (MethodRoute paramRoute : parameterizedRoutes) {
                     if (RouteMatcher.matches(path, paramRoute.getPathPattern())) {
                         methodRoute = paramRoute;
-                        System.out.println("🔍 Route paramétrée matchée : " + path + " -> " + paramRoute.getPathPattern());
+                        matchedPattern = paramRoute.getPathPattern();
+                        System.out.println("🔍 Route paramétrée matchée : " + path + " -> " + matchedPattern);
                         break;
                     }
                 }
@@ -67,30 +69,20 @@ public class FrontServlet extends HttpServlet {
                 Method method = methodRoute.getMethod();
                 Object controller = methodRoute.getControllerInstance();
                 
-                // Récupérer et afficher les paramètres de la requête
-                Map<String, String[]> requestParams = request.getParameterMap();
-                if (!requestParams.isEmpty()) {
-                    System.out.println("📥 Paramètres de la requête:");
-                    for (Map.Entry<String, String[]> entry : requestParams.entrySet()) {
-                        System.out.println("  - " + entry.getKey() + " = " + 
-                                         String.join(", ", entry.getValue()));
-                    }
-                }
+                // Résoudre les paramètres (avec support des paramètres d'URL)
+                Map<String, Object> parameterValues = ParameterResolver.resolveParametersWithUrl(
+                    request, method, path, matchedPattern);
                 
-                // Résoudre les paramètres de la méthode
-                Map<String, Object> parameterValues = ParameterResolver.resolveParameters(request, method);
-                
-                // Afficher les valeurs résolues
-                if (!parameterValues.isEmpty()) {
-                    System.out.println("🎯 Paramètres résolus pour l'appel:");
-                    for (Map.Entry<String, Object> entry : parameterValues.entrySet()) {
-                        System.out.println("  - " + entry.getKey() + " = " + entry.getValue() + 
-                                         " (" + (entry.getValue() != null ? entry.getValue().getClass().getSimpleName() : "null") + ")");
-                    }
-                }
-                
-                // Préparer les arguments pour l'invocation
+                // Préparer les arguments
                 Object[] args = ParameterResolver.prepareArguments(method, parameterValues);
+                
+                // Afficher le résumé
+                System.out.println("🎯 Arguments pour " + method.getName() + ":");
+                for (int i = 0; i < args.length; i++) {
+                    System.out.println("  [" + i + "] " + method.getParameters()[i].getName() + 
+                                     " = " + args[i] + 
+                                     " (" + (args[i] != null ? args[i].getClass().getSimpleName() : "null") + ")");
+                }
                 
                 // Invoquer la méthode avec les arguments
                 Object result = method.invoke(controller, args);
@@ -104,15 +96,32 @@ public class FrontServlet extends HttpServlet {
                     dispatcher.forward(request, response);
                 }
             } else {
-                out.println("<h2>Aucune route trouvée pour cette URL : " + path + "</h2>");
-                out.println("<h3>Routes disponibles :</h3>");
-                out.println("<ul>");
-                routes.keySet().forEach(r -> out.println("<li>" + r + "</li>"));
-                parameterizedRoutes.forEach(r -> out.println("<li>" + r.getPathPattern() + " (paramétrée)</li>"));
-                out.println("</ul>");
+                out.println("<h2>Aucune route trouvée pour : " + path + "</h2>");
             }
         } catch (Exception e) {
             e.printStackTrace(out);
         }
+    }
+
+    private void handleResult(Object result, HttpServletRequest request, 
+                            HttpServletResponse response, PrintWriter out) 
+            throws ServletException, IOException {
+        if (result instanceof String) {
+            out.println((String) result); 
+        } else if (result instanceof ModelView) {
+            ModelView mv = (ModelView) result;
+            mv.getData().forEach(request::setAttribute);
+            RequestDispatcher dispatcher = request.getRequestDispatcher(mv.getView());
+            dispatcher.forward(request, response);
+        }
+    }
+
+    private void showRouteNotFound(String path, PrintWriter out) {
+        out.println("<h2>❌ Aucune route trouvée pour: " + path + "</h2>");
+        out.println("<h3>Routes disponibles:</h3>");
+        out.println("<ul>");
+        routes.keySet().forEach(r -> out.println("<li>" + r + "</li>"));
+        parameterizedRoutes.forEach(r -> out.println("<li>" + r.getPathPattern() + " (paramétrée)</li>"));
+        out.println("</ul>");
     }
 }
