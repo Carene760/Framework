@@ -31,9 +31,11 @@ javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\RequestMapp
 javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\GetMapping.java"
 javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\PostMapping.java"
 javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\Json.java"
+javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\FileUpload.java"
 
 echo Compilation du modele...
 javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\model\ModelView.java"
+javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\model\UploadedFile.java"
 
 echo Compilation des utilitaires...
 javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\util\MethodRoute.java"

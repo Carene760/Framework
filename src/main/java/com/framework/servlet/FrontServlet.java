@@ -4,12 +4,14 @@ import com.framework.model.ModelView;
 import com.framework.util.*;
 import com.framework.annotation.Json;
 import jakarta.servlet.*;
+import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.http.*;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
 import java.util.*;
 
+@MultipartConfig
 public class FrontServlet extends HttpServlet {
 
     private Map<String, RouteEntry> routes;

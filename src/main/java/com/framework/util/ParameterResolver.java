@@ -1,7 +1,14 @@
 package com.framework.util;
 
 import com.framework.annotation.Param;
+import com.framework.annotation.FileUpload;
+import com.framework.model.UploadedFile;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.Part;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.IOException;
+import jakarta.servlet.ServletException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.lang.reflect.ParameterizedType;
@@ -145,6 +152,21 @@ public class ParameterResolver {
     
         Class<?> type = param.getType();
         String paramAnnotationName = null;
+        // Support for file upload parameters
+        if (param.isAnnotationPresent(FileUpload.class) || UploadedFile.class.equals(type) ||
+            (type.isArray() && UploadedFile.class.equals(type.getComponentType()))) {
+            FileUpload fu = param.getAnnotation(FileUpload.class);
+            String fieldName = (fu != null && !fu.value().isEmpty()) ? fu.value() : paramName;
+            try {
+                if (UploadedFile.class.equals(type)) {
+                    return handleSingleFileUpload(request, fieldName);
+                } else if (type.isArray() && UploadedFile.class.equals(type.getComponentType())) {
+                    return handleMultipleFileUpload(request, fieldName);
+                }
+            } catch (Exception e) {
+                System.err.println("❌ Erreur upload fichier: " + e.getMessage());
+            }
+        }
         
         // Vérifier si l'annotation @Param est présente
         if (param.isAnnotationPresent(Param.class)) {
@@ -222,6 +244,73 @@ public class ParameterResolver {
             System.err.println("❌ Erreur lors de la création de " + type.getSimpleName() + ": " + e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Lit un seul fichier uploadé pour le champ `fieldName`.
+     */
+    private static UploadedFile handleSingleFileUpload(HttpServletRequest request, String fieldName) throws IOException, ServletException {
+        try {
+            Part part = request.getPart(fieldName);
+            if (part == null) {
+                // essayer à chercher parmi les parts si le champ n'existe pas exact
+                for (Part p : request.getParts()) {
+                    if (p.getName().equals(fieldName)) { part = p; break; }
+                }
+            }
+            if (part == null) return null;
+
+            UploadedFile uploaded = new UploadedFile();
+            String fileName = part.getSubmittedFileName();
+            uploaded.setFileName(fileName);
+            uploaded.setContentType(part.getContentType());
+            uploaded.setSize(part.getSize());
+
+            try (InputStream in = part.getInputStream(); ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = in.read(buffer)) != -1) {
+                    baos.write(buffer, 0, read);
+                }
+                uploaded.setContent(baos.toByteArray());
+            }
+
+            System.out.println("    ✅ Fichier uploadé: " + uploaded);
+            return uploaded;
+        } catch (IllegalStateException e) {
+            System.err.println("❌ Taille fichier trop grande: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Lit plusieurs fichiers uploadés pour le champ `fieldName`.
+     */
+    private static UploadedFile[] handleMultipleFileUpload(HttpServletRequest request, String fieldName) throws IOException, ServletException {
+        List<UploadedFile> list = new ArrayList<>();
+        Collection<Part> parts = request.getParts();
+        for (Part part : parts) {
+            if (!part.getName().equals(fieldName)) continue;
+            if (part.getSubmittedFileName() == null) continue;
+
+            UploadedFile uploaded = new UploadedFile();
+            uploaded.setFileName(part.getSubmittedFileName());
+            uploaded.setContentType(part.getContentType());
+            uploaded.setSize(part.getSize());
+
+            try (InputStream in = part.getInputStream(); ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = in.read(buffer)) != -1) {
+                    baos.write(buffer, 0, read);
+                }
+                uploaded.setContent(baos.toByteArray());
+            }
+            list.add(uploaded);
+            System.out.println("    ✅ Fichier uploadé: " + uploaded);
+        }
+
+        return list.toArray(new UploadedFile[0]);
     }
 
     /**
