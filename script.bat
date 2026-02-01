@@ -30,6 +30,7 @@ javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\HttpMethod.
 javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\RequestMapping.java"
 javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\GetMapping.java"
 javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\PostMapping.java"
+javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\Json.java"
 
 echo Compilation du modele...
 javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\model\ModelView.java"
@@ -38,6 +39,7 @@ echo Compilation des utilitaires...
 javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\util\MethodRoute.java"
 javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\util\RouteEntry.java"
 javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\util\ObjectBinder.java"
+javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\util\JsonSerializer.java"
 javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\util\ParameterResolver.java" "%SRC%\com\framework\util\RouteMatcher.java"
 javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\util\ControllerScanner.java"
 

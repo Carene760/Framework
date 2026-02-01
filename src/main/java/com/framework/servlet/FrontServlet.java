@@ -2,6 +2,7 @@ package com.framework.servlet;
 
 import com.framework.model.ModelView;
 import com.framework.util.*;
+import com.framework.annotation.Json;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import java.io.IOException;
@@ -124,17 +125,59 @@ public class FrontServlet extends HttpServlet {
         
         // Invoquer la méthode
         Object result = method.invoke(controller, args);
-        
-        // Traiter le résultat
-        handleResult(request, response, result);
+
+        // Traiter le résultat (passer la méthode pour savoir si elle est annotée @Json)
+        handleResult(request, response, result, method);
     }
     
-    private void handleResult(HttpServletRequest request, HttpServletResponse response, Object result) 
+    private void handleResult(HttpServletRequest request, HttpServletResponse response, Object result, Method invokedMethod) 
             throws ServletException, IOException {
-        
+
+        // Si la méthode est annotée @Json, répondre en JSON
+        if (invokedMethod.isAnnotationPresent(com.framework.annotation.Json.class)) {
+            response.setContentType("application/json;charset=UTF-8");
+            PrintWriter out = response.getWriter();
+            try {
+                // Construire la structure demandée
+                Map<String, Object> wrapper = new LinkedHashMap<>();
+                if (result == null) {
+                    wrapper.put("status", "error");
+                    wrapper.put("code", 404);
+                    wrapper.put("data", null);
+                } else {
+                    wrapper.put("status", "success");
+                    wrapper.put("code", 200);
+                    if (result instanceof java.util.Collection) {
+                        Collection<?> col = (Collection<?>) result;
+                        wrapper.put("count", col.size());
+                        wrapper.put("data", result);
+                    } else if (result.getClass().isArray()) {
+                        int len = java.lang.reflect.Array.getLength(result);
+                        wrapper.put("count", len);
+                        wrapper.put("data", result);
+                    } else {
+                        wrapper.put("data", result);
+                    }
+                }
+
+                String json = com.framework.util.JsonSerializer.toJson(wrapper);
+                out.println(json);
+            } catch (Exception e) {
+                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                PrintWriter outErr = response.getWriter();
+                Map<String, Object> err = new LinkedHashMap<>();
+                err.put("status", "error");
+                err.put("code", 500);
+                err.put("data", e.getMessage());
+                outErr.println(com.framework.util.JsonSerializer.toJson(err));
+            }
+            return;
+        }
+
+        // Comportement existant pour les autres types de réponse
         PrintWriter out = response.getWriter();
         response.setContentType("text/html;charset=UTF-8");
-        
+
         if (result instanceof String) {
             out.println((String) result); 
         } else if (result instanceof ModelView) {
