@@ -38,7 +38,8 @@ public class MethodRoute {
     
     @Override
     public String toString() {
-        return httpMethod + " " + (pathPattern != null ? pathPattern : "exact") + 
-               " -> " + method.getDeclaringClass().getSimpleName() + "." + method.getName();
+        String path = (pathPattern != null && !pathPattern.isEmpty()) ? pathPattern : "exact";
+        return httpMethod + " " + path + 
+            " -> " + method.getDeclaringClass().getSimpleName() + "." + method.getName();
     }
 }

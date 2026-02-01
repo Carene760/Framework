@@ -4,14 +4,12 @@ import com.framework.annotation.Param;
 import jakarta.servlet.http.HttpServletRequest;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Arrays;
+import java.util.*;
 
 public class ParameterResolver {
     
     /**
-     * Résout tous les paramètres : URL + GET/POST avec priorité
+     * Résout tous les paramètres avec support spécial pour Map
      */
     public static Map<String, Object> resolveAllParameters(
             HttpServletRequest request, 
@@ -34,16 +32,115 @@ public class ParameterResolver {
         // 2. Pour chaque paramètre de la méthode, trouver la valeur
         for (Parameter param : parameters) {
             String paramName = getParameterName(param);
-            Object paramValue = findParameterValue(param, paramName, allParams);
-            parameterValues.put(paramName, paramValue);
+            
+            // CAS SPÉCIAL: Si le paramètre est une Map
+            if (isMapParameter(param)) {
+                System.out.println("  🗺️  Paramètre Map détecté: " + paramName);
+                Object paramValue = handleMapParameter(request, param);
+                parameterValues.put(paramName, paramValue);
+            } 
+            // CAS SPÉCIAL: Si le paramètre est un Model (pour les vues)
+            else if (isModelParameter(param)) {
+                System.out.println("  🎨 Paramètre Model détecté: " + paramName);
+                Object paramValue = handleModelParameter(request);
+                parameterValues.put(paramName, paramValue);
+            }
+            // CAS NORMAL: Paramètre simple
+            else {
+                Object paramValue = findParameterValue(param, paramName, allParams);
+                parameterValues.put(paramName, paramValue);
+            }
         }
         
         return parameterValues;
     }
     
     /**
-     * Trouve la valeur d'un paramètre selon la priorité
+     * Vérifie si un paramètre est de type Map
      */
+    private static boolean isMapParameter(Parameter param) {
+        Class<?> type = param.getType();
+        return Map.class.isAssignableFrom(type);
+    }
+    
+    /**
+     * Vérifie si un paramètre est de type Model (pour compatibilité future)
+     */
+    private static boolean isModelParameter(Parameter param) {
+        // À implémenter si on ajoute une classe Model
+        return false;
+    }
+    
+    /**
+     * Gère un paramètre de type Map
+     * Récupère tous les paramètres de la requête et les met dans la Map
+     */
+    private static Object handleMapParameter(HttpServletRequest request, Parameter param) {
+        Map<String, Object> paramMap = new HashMap<>();
+        
+        // Récupérer tous les paramètres de la requête
+        Enumeration<String> paramNames = request.getParameterNames();
+        
+        while (paramNames.hasMoreElements()) {
+            String name = paramNames.nextElement();
+            String[] values = request.getParameterValues(name);
+            
+            // Cas spécial pour les checkbox: si plusieurs valeurs
+            if (values != null && values.length > 1) {
+                paramMap.put(name, Arrays.asList(values));
+                System.out.println("    📦 " + name + " = " + Arrays.toString(values) + " (liste)");
+            } 
+            // Cas normal: une seule valeur
+            else if (values != null && values.length == 1) {
+                paramMap.put(name, values[0]);
+                System.out.println("    📦 " + name + " = " + values[0]);
+            }
+        }
+        
+        // Ajouter aussi les attributs de la requête
+        Enumeration<String> attrNames = request.getAttributeNames();
+        while (attrNames.hasMoreElements()) {
+            String name = attrNames.nextElement();
+            paramMap.put(name, request.getAttribute(name));
+        }
+        
+        // Retourner la Map typée selon le paramètre
+        return convertMapToTypedMap(paramMap, param);
+    }
+    
+    /**
+     * Convertit une Map simple en Map typée selon la déclaration
+     */
+    @SuppressWarnings("unchecked")
+    private static Object convertMapToTypedMap(Map<String, Object> paramMap, Parameter param) {
+        Class<?> type = param.getType();
+        
+        // Si c'est une Map<String, String>
+        if (type.equals(Map.class)) {
+            // On retourne la Map telle quelle (brute)
+            return paramMap;
+        }
+        
+        // Sinon on essaie de créer une instance du type spécifié
+        try {
+            Map<String, Object> typedMap = (Map<String, Object>) type.getDeclaredConstructor().newInstance();
+            typedMap.putAll(paramMap);
+            return typedMap;
+        } catch (Exception e) {
+            System.err.println("❌ Impossible de créer une Map typée: " + type.getName());
+            return paramMap;
+        }
+    }
+    
+    /**
+     * Gère un paramètre Model (pour compatibilité future)
+     */
+    private static Object handleModelParameter(HttpServletRequest request) {
+        // À implémenter quand on aura une classe Model
+        return null;
+    }
+    
+    // [Les autres méthodes restent inchangées...]
     private static Object findParameterValue(
             Parameter param,
             String paramName,
@@ -80,22 +177,26 @@ public class ParameterResolver {
         return getDefaultValue(type);
     }
     
-    /**
-     * Obtient le nom réel d'un paramètre
-     */
     private static String getParameterName(Parameter param) {
-        // Java garde les noms seulement si compilé avec -parameters
+        // 1. Si le nom est disponible (avec -parameters)
         if (param.isNamePresent()) {
             return param.getName();
         }
-        // Fallback: utiliser arg0, arg1, etc. basé sur l'index
-        // (Cette partie sera améliorée si nécessaire)
+        
+        // 2. Si annotation @Param présente
+        if (param.isAnnotationPresent(Param.class)) {
+            return param.getAnnotation(Param.class).value();
+        }
+        
+        // 3. Pour les Map, nom générique
+        if (Map.class.isAssignableFrom(param.getType())) {
+            return "formData";
+        }
+        
+        // 4. Fallback: arg0, arg1, etc.
         return "arg" + Arrays.asList(param.getDeclaringExecutable().getParameters()).indexOf(param);
     }
     
-    /**
-     * Convertit une valeur String en type cible
-     */
     private static Object convertValue(String stringValue, Class<?> type) {
         if (stringValue == null) {
             return getDefaultValue(type);
@@ -123,9 +224,6 @@ public class ParameterResolver {
         }
     }
     
-    /**
-     * Convertit une Map de valeurs en tableau d'objets pour l'invocation de méthode
-     */
     public static Object[] prepareArguments(Method method, Map<String, Object> parameterValues) {
         Parameter[] parameters = method.getParameters();
         Object[] args = new Object[parameters.length];
@@ -139,9 +237,6 @@ public class ParameterResolver {
         return args;
     }
     
-    /**
-     * Retourne la valeur par défaut pour un type
-     */
     private static Object getDefaultValue(Class<?> type) {
         if (type.equals(int.class) || type.equals(long.class) || 
             type.equals(double.class) || type.equals(float.class)) {
@@ -155,9 +250,6 @@ public class ParameterResolver {
         }
     }
     
-    /**
-     * Affiche un résumé des arguments pour le débogage
-     */
     public static void debugArguments(Method method, Object[] args) {
         System.out.println("🎯 Arguments pour " + method.getName() + ":");
         Parameter[] parameters = method.getParameters();
@@ -172,9 +264,19 @@ public class ParameterResolver {
             }
             
             String typeName = param.getType().getSimpleName();
-            String valueInfo = args[i] != null ? 
-                args[i] + " (" + args[i].getClass().getSimpleName() + ")" : 
-                "null";
+            String valueInfo;
+            
+            if (args[i] instanceof Map) {
+                Map<?, ?> map = (Map<?, ?>) args[i];
+                valueInfo = "Map avec " + map.size() + " entrées";
+                if (!map.isEmpty()) {
+                    valueInfo += ": " + map.keySet();
+                }
+            } else {
+                valueInfo = args[i] != null ? 
+                    args[i] + " (" + args[i].getClass().getSimpleName() + ")" : 
+                    "null";
+            }
                 
             System.out.println("  [" + i + "] " + typeName + " " + paramInfo + " = " + valueInfo);
         }

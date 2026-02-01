@@ -9,14 +9,14 @@ import java.util.*;
 public class ControllerScanner {
 
     private final String packageName;
-    private final Map<String, MethodRoute> routes = new HashMap<>();
+    private final Map<String, RouteEntry> routes = new HashMap<>();
     private final List<MethodRoute> parameterizedRoutes = new ArrayList<>();
 
     public ControllerScanner(String packageName) {
         this.packageName = packageName;
     }
 
-    public Map<String, MethodRoute> getRoutes() {
+    public Map<String, RouteEntry> getRoutes() {
         return routes;
     }
     
@@ -77,30 +77,33 @@ public class ControllerScanner {
             return;
         }
         
-        // CORRECTION : Combiner le préfixe de classe et le chemin de la méthode
         String fullPath = combinePaths(classPathPrefix, routePath);
-        
-        // Normaliser le chemin (supprimer les doubles slash)
         fullPath = normalizePath(fullPath);
-        
+            
         System.out.println("  🛣️  Chemin combiné: '" + classPathPrefix + "' + '" + routePath + "' = '" + fullPath + "'");
-        
-        // Vérifier si c'est une route paramétrée
+            
+        // Créer la MethodRoute
+        MethodRoute methodRoute = new MethodRoute(
+            controllerInstance, 
+            method, 
+            fullPath,
+            RouteMatcher.isParameterizedRoute(fullPath),
+            httpMethod
+        );
+            
         if (RouteMatcher.isParameterizedRoute(fullPath)) {
-            MethodRoute methodRoute = new MethodRoute(
-                controllerInstance, 
-                method, 
-                fullPath, 
-                true,
-                httpMethod
-            );
             parameterizedRoutes.add(methodRoute);
             System.out.println("    ↳ " + httpMethod + " " + fullPath + 
-                            " → " + method.getDeclaringClass().getSimpleName() + "." + method.getName() + "()");
+                                " → " + method.getDeclaringClass().getSimpleName() + "." + method.getName() + "()");
         } else {
-            // Route normale
-            MethodRoute methodRoute = new MethodRoute(controllerInstance, method, httpMethod);
-            routes.put(fullPath, methodRoute);
+            // NOUVEAU: Utiliser RouteEntry pour gérer plusieurs méthodes par chemin
+            RouteEntry routeEntry = routes.get(fullPath);
+            if (routeEntry == null) {
+                routeEntry = new RouteEntry(fullPath);
+                routes.put(fullPath, routeEntry);
+            }
+            routeEntry.addMethod(httpMethod, methodRoute);
+                
             System.out.println("    ↳ " + httpMethod + " " + fullPath + 
                             " → " + method.getDeclaringClass().getSimpleName() + "." + method.getName() + "()");
         }
