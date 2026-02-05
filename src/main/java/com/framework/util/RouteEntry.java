@@ -4,11 +4,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Représente toutes les méthodes HTTP pour un chemin donné
+ * Reprsente toutes les mthodes HTTP pour un chemin donn
  */
 public class RouteEntry {
     private final String path;
-    private final Map<String, MethodRoute> methods; // Méthode HTTP -> MethodRoute
+    private final Map<String, MethodRoute> methods; // Mthode HTTP -> MethodRoute
     
     public RouteEntry(String path) {
         this.path = path;
@@ -40,3 +40,5 @@ public class RouteEntry {
         return path + " -> " + methods.keySet();
     }
 }
+
+

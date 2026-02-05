@@ -9,7 +9,7 @@ set "SRC=%FRAMEWORK_PATH%\src\main\java"
 set "BIN=%FRAMEWORK_PATH%\build"
 set "LIB=C:\tomcat11\apache-tomcat-11.0.7\lib"
 set "FRAMEWORK_JAR=%FRAMEWORK_PATH%\framework.jar"
-set "JAKARTA_JAR=%LIB%\servlet-api.jar" 
+set "JAKARTA_JAR=%LIB%\servlet-api.jar;%LIB%\jasper.jar;%LIB%\catalina.jar;%LIB%\tomcat-coyote.jar;%LIB%\tomcat-util.jar" 
 set "TESTAPP_LIB=E:\HP\Documents\S5\Mr Naina\Test_framework\src\main\webapp\WEB-INF\lib"
 
 REM =====================================
@@ -32,10 +32,13 @@ javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\GetMapping.
 javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\PostMapping.java"
 javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\Json.java"
 javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\FileUpload.java"
+javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\SessionAttributes.java"
+javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\SessionParam.java"
 
 echo Compilation du modele...
-javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\model\ModelView.java"
-javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\model\UploadedFile.java"
+javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\model\ModelView.java" 
+javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\model\UploadedFile.java"
+javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\model\SessionModelView.java"
 
 echo Compilation des utilitaires...
 javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\util\MethodRoute.java"

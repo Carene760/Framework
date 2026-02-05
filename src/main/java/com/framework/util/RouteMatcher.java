@@ -7,7 +7,7 @@ import java.util.regex.*;
 public class RouteMatcher {
     
     /**
-     * Vérifie si une route correspond à un pattern avec paramètres
+     * Vrifie si une route correspond  un pattern avec paramtres
      */
     public static boolean matches(String requestPath, String routePattern) {
         if (!routePattern.contains("{") && !routePattern.contains("}")) {
@@ -27,8 +27,8 @@ public class RouteMatcher {
     }
     
     /**
-     * Extrait les valeurs des paramètres d'URL et les retourne dans une Map
-     * Ex: /etudiant/25 avec pattern /etudiant/{id} → {"id": "25"}
+     * Extrait les valeurs des paramtres d'URL et les retourne dans une Map
+     * Ex: /etudiant/25 avec pattern /etudiant/{id}  {"id": "25"}
      */
     public static Map<String, String> extractUrlParameters(String requestPath, String routePattern) {
         Map<String, String> urlParams = new HashMap<>();
@@ -37,7 +37,7 @@ public class RouteMatcher {
             return urlParams;
         }
         
-        // Extraire les noms des paramètres du pattern
+        // Extraire les noms des paramtres du pattern
         List<String> paramNames = new ArrayList<>();
         Pattern paramPattern = Pattern.compile("\\{([^/]+)\\}");
         Matcher nameMatcher = paramPattern.matcher(routePattern);
@@ -63,42 +63,44 @@ public class RouteMatcher {
     }
     
     /**
-     * Combine tous les paramètres : URL (prioritaire) + GET/POST
+     * Combine tous les paramtres : URL (prioritaire) + GET/POST
      */
     public static Map<String, String> combineAllParameters(
             String requestPath, String routePattern, HttpServletRequest request) {
         
         Map<String, String> allParams = new HashMap<>();
         
-        // 1. D'abord les paramètres GET/POST (priorité basse)
+        // 1. D'abord les paramtres GET/POST (priorit basse)
         Enumeration<String> paramNames = request.getParameterNames();
         while (paramNames.hasMoreElements()) {
             String name = paramNames.nextElement();
             allParams.put(name, request.getParameter(name));
         }
         
-        // 2. Ensuite les paramètres d'URL (priorité haute - écrasent les GET/POST)
+        // 2. Ensuite les paramtres d'URL (priorit haute - crasent les GET/POST)
         Map<String, String> urlParams = extractUrlParameters(requestPath, routePattern);
-        allParams.putAll(urlParams); // Les paramètres d'URL écrasent les GET/POST
+        allParams.putAll(urlParams); // Les paramtres d'URL crasent les GET/POST
         
         return allParams;
     }
     
     /**
-     * Vérifie si un pattern contient des paramètres
+     * Vrifie si un pattern contient des paramtres
      */
     public static boolean isParameterizedRoute(String route) {
         return route.contains("{") && route.contains("}");
     }
     
     /**
-     * Affiche les paramètres extraits pour le débogage
+     * Affiche les paramtres extraits pour le dbogage
      */
     public static void debugUrlExtraction(String requestPath, String routePattern) {
         Map<String, String> urlParams = extractUrlParameters(requestPath, routePattern);
         if (!urlParams.isEmpty()) {
-            System.out.println("🌐 Paramètres extraits de l'URL:");
+            System.out.println(" Paramtres extraits de l'URL:");
             urlParams.forEach((k, v) -> System.out.println("  - {" + k + "} = " + v));
         }
     }
 }
+
+

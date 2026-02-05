@@ -2,8 +2,11 @@ package com.framework.util;
 
 import com.framework.annotation.Param;
 import com.framework.annotation.FileUpload;
+import com.framework.annotation.SessionAttributes;
+import com.framework.annotation.SessionParam;
 import com.framework.model.UploadedFile;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.Part;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -18,7 +21,7 @@ import java.util.*;
 public class ParameterResolver {
     
     /**
-     * Résout tous les paramètres avec support spécial pour Map
+     * Rsout tous les paramtres avec support spcial pour Map
      */
     public static Map<String, Object> resolveAllParameters(
         HttpServletRequest request, 
@@ -29,23 +32,37 @@ public class ParameterResolver {
         Map<String, Object> parameterValues = new HashMap<>();
         Parameter[] parameters = method.getParameters();
         
-        // Combiner tous les paramètres disponibles
+        // Combiner tous les paramtres disponibles
         Map<String, String> allParams = RouteMatcher.combineAllParameters(requestPath, routePattern, request);
         
-        System.out.println("📋 Tous les paramètres disponibles (URL + GET/POST):");
+        System.out.println(" Tous les paramtres disponibles (URL + GET/POST):");
         allParams.forEach((k, v) -> System.out.println("  - " + k + " = " + v));
         
-        // Pour chaque paramètre de la méthode, trouver la valeur
+        // Pour chaque paramtre de la mthode, trouver la valeur
         for (Parameter param : parameters) {
             String paramName = getParameterName(param);
             
-            // CAS SPÉCIAL: Si le paramètre est une Map
-            if (isMapParameter(param)) {
-                System.out.println("  🗺️  Paramètre Map détecté: " + paramName);
+            // CAS SPCIAL: @SessionAttributes - injecter toute la session
+            if (param.isAnnotationPresent(SessionAttributes.class)) {
+                System.out.println("  [SESSION] SessionAttributes detected: " + paramName);
+                Object paramValue = handleSessionAttributes(request);
+                parameterValues.put(paramName, paramValue);
+            }
+            // CAS SPCIAL: @SessionParam - injecter un attribut de session
+            else if (param.isAnnotationPresent(SessionParam.class)) {
+                SessionParam annotation = param.getAnnotation(SessionParam.class);
+                String sessionKey = annotation.value().isEmpty() ? paramName : annotation.value();
+                System.out.println("  [SESSION] SessionParam detected: " + sessionKey);
+                Object paramValue = handleSessionParam(request, sessionKey, annotation.required());
+                parameterValues.put(paramName, paramValue);
+            }
+            // CAS SPCIAL: Si le paramtre est une Map
+            else if (isMapParameter(param)) {
+                System.out.println("    Paramtre Map dtect: " + paramName);
                 Object paramValue = handleMapParameter(request, param);
                 parameterValues.put(paramName, paramValue);
             } 
-            // CAS NORMAL: Autres paramètres
+            // CAS NORMAL: Autres paramtres
             else {
                 // PASSER LA REQUEST POUR LES OBJETS
                 Object paramValue = findParameterValue(param, paramName, allParams, request);
@@ -57,7 +74,7 @@ public class ParameterResolver {
     }
     
     /**
-     * Vérifie si un paramètre est de type Map
+     * Vrifie si un paramtre est de type Map
      */
     private static boolean isMapParameter(Parameter param) {
         Class<?> type = param.getType();
@@ -65,52 +82,52 @@ public class ParameterResolver {
     }
     
     /**
-     * Vérifie si un paramètre est de type Model (pour compatibilité future)
+     * Vrifie si un paramtre est de type Model (pour compatibilit future)
      */
     private static boolean isModelParameter(Parameter param) {
-        // À implémenter si on ajoute une classe Model
+        //  implmenter si on ajoute une classe Model
         return false;
     }
     
     /**
-     * Gère un paramètre de type Map
-     * Récupère tous les paramètres de la requête et les met dans la Map
+     * Gre un paramtre de type Map
+     * Rcupre tous les paramtres de la requte et les met dans la Map
      */
     private static Object handleMapParameter(HttpServletRequest request, Parameter param) {
         Map<String, Object> paramMap = new HashMap<>();
         
-        // Récupérer tous les paramètres de la requête
+        // Rcuprer tous les paramtres de la requte
         Enumeration<String> paramNames = request.getParameterNames();
         
         while (paramNames.hasMoreElements()) {
             String name = paramNames.nextElement();
             String[] values = request.getParameterValues(name);
             
-            // Cas spécial pour les checkbox: si plusieurs valeurs
+            // Cas spcial pour les checkbox: si plusieurs valeurs
             if (values != null && values.length > 1) {
                 paramMap.put(name, Arrays.asList(values));
-                System.out.println("    📦 " + name + " = " + Arrays.toString(values) + " (liste)");
+                System.out.println("     " + name + " = " + Arrays.toString(values) + " (liste)");
             } 
             // Cas normal: une seule valeur
             else if (values != null && values.length == 1) {
                 paramMap.put(name, values[0]);
-                System.out.println("    📦 " + name + " = " + values[0]);
+                System.out.println("     " + name + " = " + values[0]);
             }
         }
         
-        // Ajouter aussi les attributs de la requête
+        // Ajouter aussi les attributs de la requte
         Enumeration<String> attrNames = request.getAttributeNames();
         while (attrNames.hasMoreElements()) {
             String name = attrNames.nextElement();
             paramMap.put(name, request.getAttribute(name));
         }
         
-        // Retourner la Map typée selon le paramètre
+        // Retourner la Map type selon le paramtre
         return convertMapToTypedMap(paramMap, param);
     }
     
     /**
-     * Convertit une Map simple en Map typée selon la déclaration
+     * Convertit une Map simple en Map type selon la dclaration
      */
     @SuppressWarnings("unchecked")
     private static Object convertMapToTypedMap(Map<String, Object> paramMap, Parameter param) {
@@ -122,27 +139,67 @@ public class ParameterResolver {
             return paramMap;
         }
         
-        // Sinon on essaie de créer une instance du type spécifié
+        // Sinon on essaie de crer une instance du type spcifi
         try {
             Map<String, Object> typedMap = (Map<String, Object>) type.getDeclaredConstructor().newInstance();
             typedMap.putAll(paramMap);
             return typedMap;
         } catch (Exception e) {
-            System.err.println("❌ Impossible de créer une Map typée: " + type.getName());
+            System.err.println(" Impossible de crer une Map type: " + type.getName());
             return paramMap;
         }
     }
     
     /**
-     * Gère un paramètre Model (pour compatibilité future)
+     * Gre un paramtre Model (pour compatibilit future)
      */
     private static Object handleModelParameter(HttpServletRequest request) {
-        // À implémenter quand on aura une classe Model
+        //  implmenter quand on aura une classe Model
         return null;
     }
     
     /**
-     * Trouve la valeur d'un paramètre avec support des objets complexes
+     * Gre @SessionAttributes - retourne Map<String, Object> de toute la session
+     */
+    private static Map<String, Object> handleSessionAttributes(HttpServletRequest request) {
+        Map<String, Object> sessionMap = new HashMap<>();
+        HttpSession session = request.getSession(false);
+        
+        if (session != null) {
+            Enumeration<String> attributeNames = session.getAttributeNames();
+            while (attributeNames.hasMoreElements()) {
+                String name = attributeNames.nextElement();
+                sessionMap.put(name, session.getAttribute(name));
+                System.out.println("    [SESSION] " + name + " = " + session.getAttribute(name));
+            }
+        }
+        
+        return sessionMap;
+    }
+    
+    /**
+     * Gre @SessionParam - retourne un attribut spcifique de la session
+     */
+    private static Object handleSessionParam(HttpServletRequest request, String sessionKey, boolean required) {
+        HttpSession session = request.getSession(false);
+        
+        if (session != null) {
+            Object value = session.getAttribute(sessionKey);
+            if (value != null) {
+                System.out.println("    [SESSION] " + sessionKey + " = " + value);
+                return value;
+            }
+        }
+        
+        if (required) {
+            System.err.println("[ERROR] Required session attribute not found: " + sessionKey);
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Trouve la valeur d'un paramtre avec support des objets complexes
      */
     private static Object findParameterValue(
         Parameter param,
@@ -164,42 +221,42 @@ public class ParameterResolver {
                     return handleMultipleFileUpload(request, fieldName);
                 }
             } catch (Exception e) {
-                System.err.println("❌ Erreur upload fichier: " + e.getMessage());
+                System.err.println(" Erreur upload fichier: " + e.getMessage());
             }
         }
         
-        // Vérifier si l'annotation @Param est présente
+        // Vrifier si l'annotation @Param est prsente
         if (param.isAnnotationPresent(Param.class)) {
             paramAnnotationName = param.getAnnotation(Param.class).value();
-            System.out.print("  🔍 " + paramName + " → cherche avec @Param('" + paramAnnotationName + "')");
+            System.out.print("   " + paramName + "  cherche avec @Param('" + paramAnnotationName + "')");
             
-            // PRIORITÉ 1: Chercher avec le nom spécifié dans @Param
+            // PRIORIT 1: Chercher avec le nom spcifi dans @Param
             if (allParams.containsKey(paramAnnotationName)) {
                 String value = allParams.get(paramAnnotationName);
-                System.out.println(" → TROUVÉ = " + value);
+                System.out.println("  TROUV = " + value);
                 return convertValue(value, type);
             }
-            System.out.println(" → NON TROUVÉ, essaie avec nom du paramètre");
+            System.out.println("  NON TROUV, essaie avec nom du paramtre");
         } else {
-            System.out.print("  🔍 " + paramName + " → cherche avec nom");
+            System.out.print("   " + paramName + "  cherche avec nom");
         }
         
-        // PRIORITÉ 2: Si c'est un objet complexe (POJO) → utiliser le binder interne
+        // PRIORIT 2: Si c'est un objet complexe (POJO)  utiliser le binder interne
         if (isComplexObject(type)) {
-            System.out.println(" → CRÉATION D'OBJET " + type.getSimpleName());
-            // Utiliser notre binding interne qui supporte les noms avec ou sans préfixe
+            System.out.println("  CRATION D'OBJET " + type.getSimpleName());
+            // Utiliser notre binding interne qui supporte les noms avec ou sans prfixe
             return bindComplexObject(type, request, paramName);
         }
         
-        // PRIORITÉ 3: Si c'est un tableau d'objets
+        // PRIORIT 3: Si c'est un tableau d'objets
         if (type.isArray() && isComplexObject(type.getComponentType())) {
-            System.out.println(" → CRÉATION DE TABLEAU " + type.getComponentType().getSimpleName() + "[]");
+            System.out.println("  CRATION DE TABLEAU " + type.getComponentType().getSimpleName() + "[]");
             return ObjectBinder.bindArray(type.getComponentType(), request, paramName);
         }
         
-        // PRIORITÉ 4: Si c'est une liste d'objets
+        // PRIORIT 4: Si c'est une liste d'objets
         if (type.equals(List.class) || type.equals(ArrayList.class)) {
-            // Obtenir le type générique
+            // Obtenir le type gnrique
             Type genericType = param.getParameterizedType();
             if (genericType instanceof ParameterizedType) {
                 ParameterizedType pt = (ParameterizedType) genericType;
@@ -207,53 +264,53 @@ public class ParameterResolver {
                 if (typeArgs.length > 0 && typeArgs[0] instanceof Class) {
                     Class<?> elementType = (Class<?>) typeArgs[0];
                     if (isComplexObject(elementType)) {
-                        System.out.println(" → CRÉATION DE LISTE " + elementType.getSimpleName());
+                        System.out.println("  CRATION DE LISTE " + elementType.getSimpleName());
                         return ObjectBinder.bindList(elementType, request, paramName);
                     }
                 }
             }
         }
         
-        // PRIORITÉ 5: Chercher avec le nom du paramètre (types simples)
+        // PRIORIT 5: Chercher avec le nom du paramtre (types simples)
         if (allParams.containsKey(paramName)) {
             String value = allParams.get(paramName);
-            System.out.println(" → TROUVÉ = " + value);
+            System.out.println("  TROUV = " + value);
             return convertValue(value, type);
         }
         
-        // PRIORITÉ 6: Aucune correspondance
-        System.out.println(" → NON TROUVÉ");
+        // PRIORIT 6: Aucune correspondance
+        System.out.println("  NON TROUV");
         return getDefaultValue(type);
     }
 
     /**
-     * Crée et remplit un objet complexe
+     * Cre et remplit un objet complexe
      */
     private static Object bindComplexObject(Class<?> type, HttpServletRequest request, String prefix) {
         try {
-            System.out.println("    🏗️  Construction de l'objet: " + type.getSimpleName());
+            System.out.println("      Construction de l'objet: " + type.getSimpleName());
             
-            // Créer l'instance
+            // Crer l'instance
             Object instance = type.getDeclaredConstructor().newInstance();
             
-            // Remplir avec les paramètres de la requête
+            // Remplir avec les paramtres de la requte
             populateComplexObject(instance, request, prefix);
             
             return instance;
         } catch (Exception e) {
-            System.err.println("❌ Erreur lors de la création de " + type.getSimpleName() + ": " + e.getMessage());
+            System.err.println(" Erreur lors de la cration de " + type.getSimpleName() + ": " + e.getMessage());
             return null;
         }
     }
 
     /**
-     * Lit un seul fichier uploadé pour le champ `fieldName`.
+     * Lit un seul fichier upload pour le champ `fieldName`.
      */
     private static UploadedFile handleSingleFileUpload(HttpServletRequest request, String fieldName) throws IOException, ServletException {
         try {
             Part part = request.getPart(fieldName);
             if (part == null) {
-                // essayer à chercher parmi les parts si le champ n'existe pas exact
+                // essayer  chercher parmi les parts si le champ n'existe pas exact
                 for (Part p : request.getParts()) {
                     if (p.getName().equals(fieldName)) { part = p; break; }
                 }
@@ -275,16 +332,16 @@ public class ParameterResolver {
                 uploaded.setContent(baos.toByteArray());
             }
 
-            System.out.println("    ✅ Fichier uploadé: " + uploaded);
+            System.out.println("     Fichier upload: " + uploaded);
             return uploaded;
         } catch (IllegalStateException e) {
-            System.err.println("❌ Taille fichier trop grande: " + e.getMessage());
+            System.err.println(" Taille fichier trop grande: " + e.getMessage());
             return null;
         }
     }
 
     /**
-     * Lit plusieurs fichiers uploadés pour le champ `fieldName`.
+     * Lit plusieurs fichiers uploads pour le champ `fieldName`.
      */
     private static UploadedFile[] handleMultipleFileUpload(HttpServletRequest request, String fieldName) throws IOException, ServletException {
         List<UploadedFile> list = new ArrayList<>();
@@ -307,14 +364,14 @@ public class ParameterResolver {
                 uploaded.setContent(baos.toByteArray());
             }
             list.add(uploaded);
-            System.out.println("    ✅ Fichier uploadé: " + uploaded);
+            System.out.println("     Fichier upload: " + uploaded);
         }
 
         return list.toArray(new UploadedFile[0]);
     }
 
     /**
-     * Remplit un objet complexe avec les paramètres
+     * Remplit un objet complexe avec les paramtres
      */
     private static void populateComplexObject(Object obj, HttpServletRequest request, String prefix) {
         Class<?> clazz = obj.getClass();
@@ -334,9 +391,9 @@ public class ParameterResolver {
                 if (paramValue != null) {
                     try {
                         method.invoke(obj, paramValue);
-                        System.out.println("      📝 " + propertyName + " = " + paramValue);
+                        System.out.println("       " + propertyName + " = " + paramValue);
                     } catch (Exception e) {
-                        System.err.println("❌ Erreur setter " + method.getName() + ": " + e.getMessage());
+                        System.err.println(" Erreur setter " + method.getName() + ": " + e.getMessage());
                     }
                 }
             }
@@ -344,30 +401,30 @@ public class ParameterResolver {
     }
 
     /**
-     * Obtient un paramètre pour un objet
+     * Obtient un paramtre pour un objet
      */
     private static Object getParameterForObject(HttpServletRequest request, String paramName, 
                                             Class<?> type, String propertyName) {
         String stringValue = request.getParameter(paramName);
 
-        // Fallback: si la requête n'utilise pas le préfixe (ex: "nom" au lieu de "emp.nom"),
-        // essayer aussi avec le nom de la propriété seule.
+        // Fallback: si la requte n'utilise pas le prfixe (ex: "nom" au lieu de "emp.nom"),
+        // essayer aussi avec le nom de la proprit seule.
         if ((stringValue == null || stringValue.trim().isEmpty()) && propertyName != null) {
             stringValue = request.getParameter(propertyName);
         }
 
         if (stringValue == null || stringValue.trim().isEmpty()) {
-            // Vérifier si c'est un objet imbriqué — essayer avec les deux préfixes possibles
+            // Vrifier si c'est un objet imbriqu  essayer avec les deux prfixes possibles
             if (isComplexObject(type)) {
-                System.out.println("      💭 Objet imbriqué détecté: " + type.getSimpleName());
-                // PRIORITÉ 1: essayer avec le nom de la propriété seul (adresse.rue, departement.code)
+                System.out.println("       Objet imbriqu dtect: " + type.getSimpleName());
+                // PRIORIT 1: essayer avec le nom de la proprit seul (adresse.rue, departement.code)
                 Object nested = bindComplexObject(type, request, propertyName);
                 if (nested != null) {
-                    System.out.println("      ✅ Objet trouvé avec préfixe: " + propertyName);
+                    System.out.println("       Objet trouv avec prfixe: " + propertyName);
                     return nested;
                 }
-                // PRIORITÉ 2: essayer avec le chemin complet (emp.adresse.rue)
-                System.out.println("      💭 Essai avec chemin complet: " + paramName);
+                // PRIORIT 2: essayer avec le chemin complet (emp.adresse.rue)
+                System.out.println("       Essai avec chemin complet: " + paramName);
                 return bindComplexObject(type, request, paramName);
             }
             return null;
@@ -389,7 +446,7 @@ public class ParameterResolver {
                 return Float.parseFloat(stringValue);
             }
         } catch (NumberFormatException e) {
-            System.err.println("❌ Conversion échouée pour " + paramName + ": '" + stringValue + "'");
+            System.err.println(" Conversion choue pour " + paramName + ": '" + stringValue + "'");
         }
         
         return null;
@@ -401,12 +458,12 @@ public class ParameterResolver {
             return param.getName();
         }
         
-        // 2. Si annotation @Param présente
+        // 2. Si annotation @Param prsente
         if (param.isAnnotationPresent(Param.class)) {
             return param.getAnnotation(Param.class).value();
         }
         
-        // 3. Pour les Map, nom générique
+        // 3. Pour les Map, nom gnrique
         if (Map.class.isAssignableFrom(param.getType())) {
             return "formData";
         }
@@ -437,7 +494,7 @@ public class ParameterResolver {
                 return stringValue;
             }
         } catch (NumberFormatException e) {
-            System.err.println("❌ Erreur de conversion: '" + stringValue + "' en " + type.getSimpleName());
+            System.err.println(" Erreur de conversion: '" + stringValue + "' en " + type.getSimpleName());
             return getDefaultValue(type);
         }
     }
@@ -483,7 +540,7 @@ public class ParameterResolver {
     }
     
     public static void debugArguments(Method method, Object[] args) {
-        System.out.println("🎯 Arguments pour " + method.getName() + ":");
+        System.out.println(" Arguments pour " + method.getName() + ":");
         Parameter[] parameters = method.getParameters();
         
         for (int i = 0; i < args.length; i++) {
@@ -500,7 +557,7 @@ public class ParameterResolver {
             
             if (args[i] instanceof Map) {
                 Map<?, ?> map = (Map<?, ?>) args[i];
-                valueInfo = "Map avec " + map.size() + " entrées";
+                valueInfo = "Map avec " + map.size() + " entres";
                 if (!map.isEmpty()) {
                     valueInfo += ": " + map.keySet();
                 }
@@ -514,3 +571,5 @@ public class ParameterResolver {
         }
     }
 }
+
+

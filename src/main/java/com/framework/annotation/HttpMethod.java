@@ -7,3 +7,5 @@ import java.lang.annotation.*;
 public @interface HttpMethod {
     String value() default "GET"; // GET, POST, PUT, DELETE, etc.
 }
+
+

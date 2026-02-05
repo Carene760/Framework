@@ -1,6 +1,7 @@
 package com.framework.servlet;
 
 import com.framework.model.ModelView;
+import com.framework.model.SessionModelView;
 import com.framework.util.*;
 import com.framework.annotation.Json;
 import jakarta.servlet.*;
@@ -31,11 +32,11 @@ public class FrontServlet extends HttpServlet {
             this.routes = scanner.getRoutes();
             this.parameterizedRoutes = scanner.getParameterizedRoutes();
 
-            System.out.println("✅ Entrées de route: " + routes.size());
-            System.out.println("✅ Routes paramétrées: " + parameterizedRoutes.size());
+            System.out.println(" Entres de route: " + routes.size());
+            System.out.println(" Routes paramtres: " + parameterizedRoutes.size());
             
             // Debug: afficher toutes les routes
-            System.out.println("📋 Toutes les routes enregistrées:");
+            System.out.println(" Toutes les routes enregistres:");
             routes.forEach((path, entry) -> {
                 System.out.println("  " + path + " -> " + entry.getAllMethods().keySet());
             });
@@ -51,8 +52,8 @@ public class FrontServlet extends HttpServlet {
         String path = request.getRequestURI().substring(request.getContextPath().length());
         String method = request.getMethod(); 
         
-        System.out.println("\n=== Nouvelle requête ===");
-        System.out.println("🌐 " + method + " " + path);
+        System.out.println("\n=== Nouvelle requte ===");
+        System.out.println(" " + method + " " + path);
 
         try {
             MethodRoute methodRoute = findRoute(path, method);
@@ -68,42 +69,42 @@ public class FrontServlet extends HttpServlet {
     }
     
     private MethodRoute findRoute(String path, String httpMethod) {
-        System.out.println("🔍 Recherche de route pour: " + httpMethod + " " + path);
+        System.out.println(" Recherche de route pour: " + httpMethod + " " + path);
         
         // 1. Chercher dans les routes exactes (avec RouteEntry)
         RouteEntry routeEntry = routes.get(path);
         if (routeEntry != null) {
-            System.out.println("🎯 RouteEntry trouvée pour: " + path);
-            System.out.println("🎯 Méthodes disponibles: " + routeEntry.getAllMethods().keySet());
+            System.out.println(" RouteEntry trouve pour: " + path);
+            System.out.println(" Mthodes disponibles: " + routeEntry.getAllMethods().keySet());
             
             MethodRoute methodRoute = routeEntry.getMethod(httpMethod);
             if (methodRoute != null) {
-                System.out.println("✅ Route exacte trouvée: " + methodRoute);
+                System.out.println(" Route exacte trouve: " + methodRoute);
                 return methodRoute;
             } else {
-                System.out.println("⚠️ Chemin trouvé mais méthode " + httpMethod + " non disponible");
-                System.out.println("⚠️ Méthodes disponibles: " + routeEntry.getAllMethods().keySet());
+                System.out.println(" Chemin trouv mais mthode " + httpMethod + " non disponible");
+                System.out.println(" Mthodes disponibles: " + routeEntry.getAllMethods().keySet());
             }
         } else {
-            System.out.println("❌ Aucune RouteEntry pour: '" + path + "'");
+            System.out.println(" Aucune RouteEntry pour: '" + path + "'");
         }
         
-        // 2. Chercher dans les routes paramétrées
-        System.out.println("🔍 Recherche dans " + parameterizedRoutes.size() + " routes paramétrées...");
+        // 2. Chercher dans les routes paramtres
+        System.out.println(" Recherche dans " + parameterizedRoutes.size() + " routes paramtres...");
         for (MethodRoute paramRoute : parameterizedRoutes) {
             if (RouteMatcher.matches(path, paramRoute.getPathPattern())) {
                 if (paramRoute.matchesHttpMethod(httpMethod)) {
-                    System.out.println("✅ Route paramétrée matchée: " + paramRoute);
+                    System.out.println(" Route paramtre matche: " + paramRoute);
                     return paramRoute;
                 } else {
-                    System.out.println("⚠️ Route paramétrée matchée mais méthode incorrecte: " + 
+                    System.out.println(" Route paramtre matche mais mthode incorrecte: " + 
                                      paramRoute.getHttpMethod() + " != " + httpMethod);
                 }
             }
         }
         
-        // 3. Route non trouvée
-        System.out.println("❌ Aucune route trouvée pour " + httpMethod + " " + path);
+        // 3. Route non trouve
+        System.out.println(" Aucune route trouve pour " + httpMethod + " " + path);
         return null;
     }
     
@@ -113,34 +114,34 @@ public class FrontServlet extends HttpServlet {
         Method method = methodRoute.getMethod();
         Object controller = methodRoute.getControllerInstance();
         
-        // Résoudre les paramètres
+        // Rsoudre les paramtres
         Map<String, Object> parameterValues = ParameterResolver.resolveAllParameters(
             request, method, path, 
             methodRoute.getPathPattern() != null ? methodRoute.getPathPattern() : path
         );
         
-        // Préparer les arguments
+        // Prparer les arguments
         Object[] args = ParameterResolver.prepareArguments(method, parameterValues);
         
-        // Afficher le débogage
+        // Afficher le dbogage
         ParameterResolver.debugArguments(method, args);
         
-        // Invoquer la méthode
+        // Invoquer la mthode
         Object result = method.invoke(controller, args);
 
-        // Traiter le résultat (passer la méthode pour savoir si elle est annotée @Json)
+        // Traiter le rsultat (passer la mthode pour savoir si elle est annote @Json)
         handleResult(request, response, result, method);
     }
     
     private void handleResult(HttpServletRequest request, HttpServletResponse response, Object result, Method invokedMethod) 
             throws ServletException, IOException {
 
-        // Si la méthode est annotée @Json, répondre en JSON
+        // Si la mthode est annote @Json, rpondre en JSON
         if (invokedMethod.isAnnotationPresent(com.framework.annotation.Json.class)) {
             response.setContentType("application/json;charset=UTF-8");
             PrintWriter out = response.getWriter();
             try {
-                // Construire la structure demandée
+                // Construire la structure demande
                 Map<String, Object> wrapper = new LinkedHashMap<>();
                 if (result == null) {
                     wrapper.put("status", "error");
@@ -176,21 +177,39 @@ public class FrontServlet extends HttpServlet {
             return;
         }
 
-        // Comportement existant pour les autres types de réponse
+        // Comportement existant pour les autres types de rponse
         PrintWriter out = response.getWriter();
         response.setContentType("text/html;charset=UTF-8");
 
         if (result instanceof String) {
             out.println((String) result); 
+        } else if (result instanceof SessionModelView) {
+            // Grer SessionModelView: ajouter les attributs de session puis forward
+            SessionModelView smv = (SessionModelView) result;
+            
+            // Ajouter les attributs de requte
+            smv.getData().forEach(request::setAttribute);
+            
+            // Ajouter les attributs de session
+            if (smv.hasSessionAttributes()) {
+                HttpSession session = request.getSession(true);
+                smv.getSessionAttributes().forEach((key, value) -> {
+                    session.setAttribute(key, value);
+                    System.out.println("[SESSION] " + key + " = " + value);
+                });
+            }
+            
+            RequestDispatcher dispatcher = request.getRequestDispatcher(smv.getView());
+            dispatcher.forward(request, response);
         } else if (result instanceof ModelView) {
             ModelView mv = (ModelView) result;
             mv.getData().forEach(request::setAttribute);
             RequestDispatcher dispatcher = request.getRequestDispatcher(mv.getView());
             dispatcher.forward(request, response);
         } else if (result == null) {
-            out.println("<h2>Aucun retour de la méthode</h2>");
+            out.println("<h2>Aucun retour de la mthode</h2>");
         } else {
-            out.println("<h2>Type de retour non supporté: " + result.getClass().getName() + "</h2>");
+            out.println("<h2>Type de retour non support: " + result.getClass().getName() + "</h2>");
         }
     }
     
@@ -198,8 +217,8 @@ public class FrontServlet extends HttpServlet {
         response.setContentType("text/html;charset=UTF-8");
         PrintWriter out = response.getWriter();
         
-        out.println("<h2>❌ Erreur 404 - Route non trouvée</h2>");
-        out.println("<p>Méthode: <strong>" + method + "</strong></p>");
+        out.println("<h2> Erreur 404 - Route non trouve</h2>");
+        out.println("<p>Mthode: <strong>" + method + "</strong></p>");
         out.println("<p>Chemin: <strong>" + path + "</strong></p>");
         
         out.println("<h3>Routes disponibles pour ce chemin:</h3>");
@@ -231,10 +250,12 @@ public class FrontServlet extends HttpServlet {
         response.setContentType("text/html;charset=UTF-8");
         PrintWriter out = response.getWriter();
         
-        out.println("<h2>❌ Erreur interne du serveur</h2>");
+        out.println("<h2> Erreur interne du serveur</h2>");
         out.println("<pre>");
         e.printStackTrace(out);
         out.println("</pre>");
         response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
     }
 }
+
+

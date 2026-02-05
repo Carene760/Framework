@@ -27,21 +27,21 @@ public class ControllerScanner {
     public void afficherLesControllersEtRoutes() throws Exception {
         List<Class<?>> classes = getClassesInPackageRecursively(packageName);
 
-        System.out.println("\n=== Liste des contrôleurs et routes trouvés ===");
+        System.out.println("\n=== Liste des contrleurs et routes trouvs ===");
         for (Class<?> clazz : classes) {
             if (clazz.isAnnotationPresent(Controller.class)) {
-                System.out.println("🧩 Contrôleur : " + clazz.getName());
+                System.out.println(" Contrleur : " + clazz.getName());
 
-                // Récupérer le préfixe de chemin depuis @RequestMapping sur la classe
+                // Rcuprer le prfixe de chemin depuis @RequestMapping sur la classe
                 String classPathPrefix = "";
                 if (clazz.isAnnotationPresent(RequestMapping.class)) {
                     classPathPrefix = clazz.getAnnotation(RequestMapping.class).value();
-                    System.out.println("  📁 Préfixe de chemin: " + classPathPrefix);
+                    System.out.println("   Prfixe de chemin: " + classPathPrefix);
                 }
 
                 Object controllerInstance = clazz.getDeclaredConstructor().newInstance();
 
-                // Scanner toutes les méthodes
+                // Scanner toutes les mthodes
                 for (Method method : clazz.getDeclaredMethods()) {
                     processMethod(method, controllerInstance, classPathPrefix);
                 }
@@ -54,7 +54,7 @@ public class ControllerScanner {
         String routePath = "";
         String httpMethod = "GET";
         
-        // Détecter l'annotation de mapping
+        // Dtecter l'annotation de mapping
         if (method.isAnnotationPresent(GetMapping.class)) {
             GetMapping mapping = method.getAnnotation(GetMapping.class);
             routePath = mapping.value();
@@ -68,21 +68,21 @@ public class ControllerScanner {
             routePath = mapping.value();
             httpMethod = mapping.method();
         } else if (method.isAnnotationPresent(Url.class)) {
-            // Support rétro-compatible avec @Url
+            // Support rtro-compatible avec @Url
             Url mapping = method.getAnnotation(Url.class);
             routePath = mapping.value();
             httpMethod = mapping.method();
         } else {
-            // Pas une méthode de route
+            // Pas une mthode de route
             return;
         }
         
         String fullPath = combinePaths(classPathPrefix, routePath);
         fullPath = normalizePath(fullPath);
             
-        System.out.println("  🛣️  Chemin combiné: '" + classPathPrefix + "' + '" + routePath + "' = '" + fullPath + "'");
+        System.out.println("    Chemin combin: '" + classPathPrefix + "' + '" + routePath + "' = '" + fullPath + "'");
             
-        // Créer la MethodRoute
+        // Crer la MethodRoute
         MethodRoute methodRoute = new MethodRoute(
             controllerInstance, 
             method, 
@@ -93,10 +93,10 @@ public class ControllerScanner {
             
         if (RouteMatcher.isParameterizedRoute(fullPath)) {
             parameterizedRoutes.add(methodRoute);
-            System.out.println("    ↳ " + httpMethod + " " + fullPath + 
-                                " → " + method.getDeclaringClass().getSimpleName() + "." + method.getName() + "()");
+            System.out.println("     " + httpMethod + " " + fullPath + 
+                                "  " + method.getDeclaringClass().getSimpleName() + "." + method.getName() + "()");
         } else {
-            // NOUVEAU: Utiliser RouteEntry pour gérer plusieurs méthodes par chemin
+            // NOUVEAU: Utiliser RouteEntry pour grer plusieurs mthodes par chemin
             RouteEntry routeEntry = routes.get(fullPath);
             if (routeEntry == null) {
                 routeEntry = new RouteEntry(fullPath);
@@ -104,8 +104,8 @@ public class ControllerScanner {
             }
             routeEntry.addMethod(httpMethod, methodRoute);
                 
-            System.out.println("    ↳ " + httpMethod + " " + fullPath + 
-                            " → " + method.getDeclaringClass().getSimpleName() + "." + method.getName() + "()");
+            System.out.println("     " + httpMethod + " " + fullPath + 
+                            "  " + method.getDeclaringClass().getSimpleName() + "." + method.getName() + "()");
         }
     }
 
@@ -145,13 +145,13 @@ public class ControllerScanner {
         return path;
     }
 
-    // [Les méthodes restantes inchangées...]
+    // [Les mthodes restantes inchanges...]
     private List<Class<?>> getClassesInPackageRecursively(String packageName) throws Exception {
         String path = packageName.replace('.', '/');
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         URL resource = classLoader.getResource(path);
         if (resource == null) {
-            System.out.println("⚠️ Aucun répertoire trouvé pour " + path);
+            System.out.println(" Aucun rpertoire trouv pour " + path);
             return Collections.emptyList();
         }
     
@@ -193,3 +193,5 @@ public class ControllerScanner {
         }
     }
 }
+
+

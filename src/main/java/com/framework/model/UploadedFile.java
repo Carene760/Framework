@@ -25,3 +25,6 @@ public class UploadedFile {
         return String.format("UploadedFile{name='%s', type='%s', size=%d}", fileName, contentType, size);
     }
 }
+
+
+
