@@ -2,7 +2,9 @@ package com.framework.servlet;
 
 import com.framework.model.ModelView;
 import com.framework.model.SessionModelView;
+import com.framework.model.UserSession;
 import com.framework.util.*;
+import com.framework.annotation.Auth;
 import com.framework.annotation.Json;
 import jakarta.servlet.*;
 import jakarta.servlet.annotation.MultipartConfig;
@@ -113,6 +115,22 @@ public class FrontServlet extends HttpServlet {
         
         Method method = methodRoute.getMethod();
         Object controller = methodRoute.getControllerInstance();
+
+        Auth auth = resolveAuthAnnotation(method);
+        if (auth != null) {
+            UserSession userSession = AuthSessionUtil.resolveUserSession(request, getServletConfig());
+            if (!userSession.isAuthenticated()) {
+                sendAuthError(response, method, HttpServletResponse.SC_UNAUTHORIZED,
+                        "Authentication required");
+                return;
+            }
+
+            if (!AuthSessionUtil.isAuthorized(auth, userSession)) {
+                sendAuthError(response, method, HttpServletResponse.SC_FORBIDDEN,
+                        "Access denied for current role");
+                return;
+            }
+        }
         
         // Rsoudre les paramtres
         Map<String, Object> parameterValues = ParameterResolver.resolveAllParameters(
@@ -255,6 +273,36 @@ public class FrontServlet extends HttpServlet {
         e.printStackTrace(out);
         out.println("</pre>");
         response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+    }
+
+    private Auth resolveAuthAnnotation(Method method) {
+        if (method.isAnnotationPresent(Auth.class)) {
+            return method.getAnnotation(Auth.class);
+        }
+        Class<?> controllerClass = method.getDeclaringClass();
+        if (controllerClass.isAnnotationPresent(Auth.class)) {
+            return controllerClass.getAnnotation(Auth.class);
+        }
+        return null;
+    }
+
+    private void sendAuthError(HttpServletResponse response, Method method, int code, String message) throws IOException {
+        response.setStatus(code);
+        if (method.isAnnotationPresent(Json.class)) {
+            response.setContentType("application/json;charset=UTF-8");
+            Map<String, Object> err = new LinkedHashMap<>();
+            err.put("status", "error");
+            err.put("code", code);
+            err.put("data", message);
+            response.getWriter().println(JsonSerializer.toJson(err));
+            return;
+        }
+
+        response.setContentType("text/html;charset=UTF-8");
+        PrintWriter out = response.getWriter();
+        out.println("<h2>Acces refuse</h2>");
+        out.println("<p>" + message + "</p>");
+        out.println("<p>Code: <strong>" + code + "</strong></p>");
     }
 }
 

@@ -4,7 +4,7 @@ setlocal enabledelayedexpansion
 REM =====================================
 REM Variables
 REM =====================================
-set "FRAMEWORK_PATH=..\Framework"
+set "FRAMEWORK_PATH=."
 set "SRC=%FRAMEWORK_PATH%\src\main\java"
 set "BIN=%FRAMEWORK_PATH%\build"
 set "LIB=C:\tomcat11\apache-tomcat-11.0.7\lib"
@@ -31,6 +31,7 @@ javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\RequestMapp
 javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\GetMapping.java"
 javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\PostMapping.java"
 javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\Json.java"
+javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\Auth.java"
 javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\FileUpload.java"
 javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\SessionAttributes.java"
 javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\annotation\SessionParam.java"
@@ -39,6 +40,7 @@ echo Compilation du modele...
 javac -cp "%JAKARTA_JAR%" -d "%BIN%" "%SRC%\com\framework\model\ModelView.java" 
 javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\model\UploadedFile.java"
 javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\model\SessionModelView.java"
+javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\model\UserSession.java"
 
 echo Compilation des utilitaires...
 javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\util\MethodRoute.java"
@@ -47,6 +49,7 @@ javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\util\ObjectBinde
 javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\util\JsonSerializer.java"
 javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\util\ParameterResolver.java" "%SRC%\com\framework\util\RouteMatcher.java"
 javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\util\ControllerScanner.java"
+javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\util\AuthSessionUtil.java"
 
 echo Compilation du servlet...
 javac -cp "%JAKARTA_JAR%;%BIN%" -d "%BIN%" "%SRC%\com\framework\servlet\FrontServlet.java"
