@@ -1,0 +1,2 @@
+wsl -d ubuntu
+.\script.sh
