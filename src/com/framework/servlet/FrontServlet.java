@@ -25,7 +25,7 @@ public class FrontServlet extends HttpServlet {
             scanner.afficherLesControllersEtRoutes();
 
             this.routes = scanner.getRoutes();
-
+          
             ServletContext context = getServletContext();
             context.setAttribute("controllerPackage", packageControllers);
             context.setAttribute("routes", this.routes);
@@ -44,7 +44,6 @@ public class FrontServlet extends HttpServlet {
         PrintWriter out = response.getWriter();
 
         String path = request.getRequestURI().substring(request.getContextPath().length());
-        out.println("<h1>URL demandée : " + path + "</h1>");
 
         try {
             MethodRoute methodRoute = this.routes.get(path);
@@ -53,8 +52,12 @@ public class FrontServlet extends HttpServlet {
                 Object controller = methodRoute.getControllerInstance();
                 Object result = method.invoke(controller);
 
-                out.println("<h2>Résultat de la méthode :</h2>");
-                out.println("<p>" + result + "</p>");
+                if (result instanceof String) {
+                    out.println((String) result); 
+                } else {
+                    out.println("<h3>Type de retour non géré :</h3>");
+                    out.println("<pre>" + result + "</pre>");
+                }
             } else {
                 out.println("<h2>Aucune route trouvée pour cette URL</h2>");
             }
